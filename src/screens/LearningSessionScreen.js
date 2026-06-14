@@ -104,10 +104,10 @@ export default function LearningSessionScreen({ navigation }) {
   };
 
   const handleFinish = async () => {
-    // 结束番茄钟
-    if (pomodoroSessionId && currentTask?.id) {
+    // 结束番茄钟（completePomodoro 只接受 task_id 和 duration，不接受 session_id）
+    if (currentTask?.id) {
       try {
-        await completePomodoro({ task_id: currentTask.id, session_id: pomodoroSessionId });
+        await completePomodoro({ task_id: currentTask.id, duration: elapsed });
       } catch (e) {
         console.warn('结束番茄钟失败:', e.message);
       }

@@ -402,8 +402,10 @@ export default function DiagnosisScreen({ navigation }) {
                 .filter(q => {
                   if (answers[q.id] === undefined && !uncertainAnswers[q.id]) return false;
                   if (uncertainAnswers[q.id]) return true;
-                  const studentAnswer = formattedAnswers[String(q.id)];
-                  return studentAnswer !== String(q.answer);
+                  // 标准化：统一转为选项文字再比较，避免 "A" !== "0" 的错误匹配
+                  const studentOptText = q.options?.[answers[q.id]] || String.fromCharCode(65 + Number(answers[q.id]));
+                  const correctOptText = q.options?.[q.answer] || String.fromCharCode(65 + Number(q.answer));
+                  return studentOptText !== correctOptText;
                 })
                 .map(q => ({
                   subject: q.subject,
