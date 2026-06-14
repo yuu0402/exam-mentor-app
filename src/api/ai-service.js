@@ -4,8 +4,10 @@
  * @module ai-service
  */
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
 const AI_BASE = 'https://cpa.xmsl.eu.cc/v1';
-const AI_KEY = '__AI_KEY_PLACEHOLDER__';  // 构建时替换或由设置页提供
+const AI_SETTINGS_KEY = '@ai_settings';
 const AI_MODEL = 'gpt-4o';
 
 // ======================== AI 配置状态检测 ========================
@@ -20,20 +22,41 @@ export const AI_STATUS = {
   CONFIGURED: 'configured',
 };
 
+/** 模块级 AI Key 缓存（同步读取） */
+let cachedKey = null;
+
 /**
- * 检测 AI Key 是否已配置
- * 在 ai-service.js 模块加载时和每次调用前检测，避免无效请求浪费资源
+ * 加载 AI 配置（异步，从 AsyncStorage 读取）
+ * 每次 chat() 调用前自动刷新缓存
+ */
+export async function loadAIKey() {
+  try {
+    const raw = await AsyncStorage.getItem(AI_SETTINGS_KEY);
+    if (raw) {
+      const cfg = JSON.parse(raw);
+      cachedKey = cfg.apiKey || null;
+    } else {
+      cachedKey = null;
+    }
+  } catch {
+    cachedKey = null;
+  }
+  return cachedKey;
+}
+
+/**
+ * 检测 AI Key 是否已配置（同步，读取缓存）
  * @returns {string} AI_STATUS.UNCONFIGURED | AI_STATUS.CONFIGURED
  */
 export function getAIStatus() {
-  if (!AI_KEY) return AI_STATUS.UNCONFIGURED;
-  // 检测占位符模式：__*_PLACEHOLDER__ 或 __AI_KEY_* 等构建占位符
-  const trimmed = AI_KEY.trim();
+  const key = cachedKey;
+  if (!key) return AI_STATUS.UNCONFIGURED;
+  const trimmed = String(key).trim();
   if (
     trimmed === '__AI_KEY_PLACEHOLDER__' ||
-    /^__[A-Z_]+__$/.test(trimmed) ||   // 匹配 __XXX__ 占位符
-    trimmed.length < 10 ||               // Key 过短不合法
-    trimmed.startsWith('your-') ||       // "your-api-key" 类示例
+    /^__[A-Z_]+__$/.test(trimmed) ||
+    trimmed.length < 10 ||
+    trimmed.startsWith('your-') ||
     trimmed.startsWith('sk-placeholder')
   ) {
     return AI_STATUS.UNCONFIGURED;
@@ -174,7 +197,7 @@ function isRetryableError(error) {
  * @param {boolean} [opts.skipRetry=false] - 强制不重试（如非幂等操作）
  * @returns {Promise<any>} 解析后的 JSON
  */
-async function fetchWithRetry(url, body, opts = {}) {
+async function fetchWithRetry(url, body, apiKey, opts = {}) {
   const {
     timeout = REQUEST_TIMEOUT,
     maxRetries = MAX_RETRIES,
@@ -194,7 +217,7 @@ async function fetchWithRetry(url, body, opts = {}) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${AI_KEY}`,
+          'Authorization': `Bearer ${apiKey}`,
           ...extraHeaders,
         },
         body: JSON.stringify(body),
@@ -262,6 +285,9 @@ export async function chat(messages, options = {}) {
     cacheKey = null,
   } = options;
 
+  // ====== 刷新 AI 配置缓存 ======
+  await loadAIKey();
+
   // ====== 检测 AI 配置状态 ======
   if (getAIStatus() === AI_STATUS.UNCONFIGURED) {
     const err = new Error('AI 密钥未配置：占位符 Key 无法发起 API 请求');
@@ -290,7 +316,7 @@ export async function chat(messages, options = {}) {
     body.response_format = { type: 'json_object' };
   }
 
-  const data = await fetchWithRetry(`${AI_BASE}/chat/completions`, body);
+  const data = await fetchWithRetry(`${AI_BASE}/chat/completions`, body, cachedKey);
 
   const content = data.choices?.[0]?.message?.content || '';
   const result = content || '（AI未返回内容，请稍后再试）';

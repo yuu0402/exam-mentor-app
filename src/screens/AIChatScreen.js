@@ -4,7 +4,7 @@ import {
   FlatList, KeyboardAvoidingView, Platform, ActivityIndicator,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
-import { chat, getAIStatus, AI_STATUS, AI_UNCONFIGURED_MESSAGE } from '../api/ai-service';
+import { chat, getAIStatus, AI_STATUS, AI_UNCONFIGURED_MESSAGE, loadAIKey } from '../api/ai-service';
 
 // ---------------------------------------------------------------------------
 // Default quick prompts (shown when no context is passed)
@@ -137,8 +137,14 @@ export default function AIChatScreen({ route }) {
   // ── Read context from route params ──────────────────────────
   const context = route?.params?.context || null;
 
-  // ── Detect AI configuration status (synchronous, reads module-level constant) ──
-  const isAIUnconfigured = getAIStatus() === AI_STATUS.UNCONFIGURED;
+  // ── Detect AI configuration status (async load on mount) ──
+  const [isAIUnconfigured, setIsAIUnconfigured] = useState(true);
+
+  useEffect(() => {
+    loadAIKey().then(() => {
+      setIsAIUnconfigured(getAIStatus() === AI_STATUS.UNCONFIGURED);
+    });
+  }, []);
 
   // ── Build initial assistant greeting ────────────────────────
   const initialGreeting = getContextGreeting(context);
