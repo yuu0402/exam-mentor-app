@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getWeeklyStats, getCheckinRecords, getCheckinStats } from '../api/backend';
 
@@ -318,6 +318,25 @@ export default function StatsScreen({ navigation }) {
   // 总学习时长
   const totalMinutes = weeklyData.reduce((sum, d) => sum + d.minutes, 0);
 
+  // 加载中显示全屏 Loading
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+            <Icon name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>学习数据</Text>
+          <View style={{ width: 40 }} />
+        </View>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+          <Text style={styles.loadingText}>加载中...</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* 顶部导航栏 */}
@@ -504,4 +523,8 @@ const styles = StyleSheet.create({
   // Empty State
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 30 },
   emptyText: { fontSize: 14, color: '#8E8E93', marginTop: 12 },
+
+  // Loading
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2F2F7' },
+  loadingText: { marginTop: 12, fontSize: 14, color: '#8E8E93' },
 });

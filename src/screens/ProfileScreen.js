@@ -65,10 +65,14 @@ export default function ProfileScreen({ navigation }) {
     return require('../assets/default-avatar.png');
   };
 
-  // 处理打卡
-  const handleCheckIn = () => {
-    checkIn();
-    Alert.alert('打卡成功', '今日学习已打卡，继续加油！');
+  // 处理打卡（需 await 确认完成后再弹窗）
+  const handleCheckIn = async () => {
+    try {
+      await checkIn();
+      Alert.alert('打卡成功', '今日学习已打卡，继续加油！');
+    } catch (e) {
+      Alert.alert('打卡失败', '打卡失败，请重试');
+    }
   };
 
   return (
