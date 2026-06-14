@@ -21,7 +21,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "用于扫描二维码登录",
         "NSMicrophoneUsageDescription": "用于语音答疑",
-        "NSPhotoLibraryUsageDescription": "用于保存学习资料"
+        "NSPhotoLibraryUsageDescription": "用于保存学习资料",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
