@@ -53,12 +53,23 @@ jobs:
       - name: Export IPA
         run: |
           mkdir -p build
+          # Create minimal export options plist for unsigned build
+          cat > build/exportOptions.plist << 'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>method</key>
+    <string>app-store</string>
+    <key>signingStyle</key>
+    <string>automatic</string>
+</dict>
+</plist>
+EOF
           xcodebuild -exportArchive \
             -archivePath build/app.xcarchive \
             -exportPath build/ \
-            -exportOptionsPlist /dev/null \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO
+            -exportOptionsPlist build/exportOptions.plist
 
           ls -la build/
           if [ -f "build/app.ipa" ]; then
