@@ -37,6 +37,8 @@ const linking = {
           Diagnosis: 'diagnosis',
           StudyPlan: 'study-plan',
           WrongAnswers: 'wrong-answers',
+          LearningSession: 'learning-session',
+          Stats: 'stats',
         },
       },
       CourseTab: {

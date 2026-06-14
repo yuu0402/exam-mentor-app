@@ -298,40 +298,45 @@ export default function DiagnosisScreen({ navigation }) {
   useEffect(() => {
     if (!draftChecked && screenState === 'idle') {
       setDraftChecked(true);
-      loadData(DIAGNOSIS_DRAFT_KEY).then(draft => {
-        if (draft && draft.answers && Object.keys(draft.answers).length > 0 && draft.test) {
-          Alert.alert(
-            '检测到未完成的测试',
-            '上次诊断测试未完成，是否继续？\n\n已答 ' + Object.keys(draft.answers).length
-              + ' 题，剩余时间约 ' + formatTimeDisplay(draft.timeRemaining || 0),
-            [
-              {
-                text: '放弃进度',
-                style: 'destructive',
-                onPress: () => removeData(DIAGNOSIS_DRAFT_KEY),
-              },
-              {
-                text: '继续答题',
-                onPress: () => {
-                  setTest(draft.test);
-                  setAnswers(draft.answers || {});
-                  setUncertainAnswers(draft.uncertainAnswers || {});
-                  setCurrentQuestionIndex(draft.currentQuestionIndex || 0);
-                  setTimeRemaining(draft.timeRemaining || 0);
-                  const qId = draft.test?.questions?.[draft.currentQuestionIndex || 0]?.id;
-                  if (draft.uncertainAnswers?.[qId]) {
-                    setSelectedAnswer('uncertain');
-                  } else {
-                    setSelectedAnswer(draft.answers?.[qId] ?? null);
-                  }
-                  setScreenState('testing');
+      loadData(DIAGNOSIS_DRAFT_KEY)
+        .then(draft => {
+          if (draft && draft.answers && Object.keys(draft.answers).length > 0 && draft.test) {
+            Alert.alert(
+              '检测到未完成的测试',
+              '上次诊断测试未完成，是否继续？\n\n已答 ' + Object.keys(draft.answers).length
+                + ' 题，剩余时间约 ' + formatTimeDisplay(draft.timeRemaining || 0),
+              [
+                {
+                  text: '放弃进度',
+                  style: 'destructive',
+                  onPress: () => removeData(DIAGNOSIS_DRAFT_KEY),
                 },
-              },
-            ],
-            { cancelable: false }
-          );
-        }
-      });
+                {
+                  text: '继续答题',
+                  onPress: () => {
+                    setTest(draft.test);
+                    setAnswers(draft.answers || {});
+                    setUncertainAnswers(draft.uncertainAnswers || {});
+                    setCurrentQuestionIndex(draft.currentQuestionIndex || 0);
+                    setTimeRemaining(draft.timeRemaining || 0);
+                    const qId = draft.test?.questions?.[draft.currentQuestionIndex || 0]?.id;
+                    if (draft.uncertainAnswers?.[qId]) {
+                      setSelectedAnswer('uncertain');
+                    } else {
+                      setSelectedAnswer(draft.answers?.[qId] ?? null);
+                    }
+                    setScreenState('testing');
+                  },
+                },
+              ],
+              { cancelable: false }
+            );
+          }
+        })
+        .catch(err => {
+          // P2-011 修复：AsyncStorage 读取异常时打印警告，不影响用户流程
+          console.warn('读取诊断测试草稿失败:', err.message);
+        });
     }
   }, [draftChecked, screenState]);
 
@@ -1725,7 +1730,7 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#FF9800',
+    backgroundColor: '#fff',
   },
   optionText: {
     flex: 1,

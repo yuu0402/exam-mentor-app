@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
@@ -14,6 +14,87 @@ const OPTION_COLORS = ['#007AFF', '#FF9500', '#34C759', '#FF3B30'];
 
 const SUBJECT_NAMES = { math:'数学', physics:'物理', english:'英语', chinese:'语文', chemistry:'化学' };
 const SUBJECT_COLORS = { math:'#FF3B30', physics:'#007AFF', english:'#FF9500', chinese:'#34C759', chemistry:'#AF52DE' };
+
+// P1-6: 错题卡片组件用 React.memo 避免每次 refresh 重建
+const WrongAnswerCard = memo(function WrongAnswerCard({ w, idx, due, statusText, statusColor, reviewProgress, maxIntervals, onRemember, onForget, onViewCourse }) {
+  return (
+    <View key={w.id || idx} style={[styles.card, due && styles.cardDue]}>
+      {/* Review status bar */}
+      <View style={styles.statusBar}>
+        <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+        <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
+        {!w.reviewState?.completedAll && (
+          <View style={styles.progressRow}>
+            {Array.from({ length: maxIntervals }).map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.progressDot,
+                  { backgroundColor: i < reviewProgress ? SUBJECT_COLORS[w.subject] || '#007AFF' : '#E5E5EA' },
+                ]}
+              />
+            ))}
+          </View>
+        )}
+      </View>
+
+      <Text style={styles.question} numberOfLines={2}>{w.question || '未知题目'}</Text>
+      <View style={styles.answerRow}>
+        <View style={styles.answerBadge}>
+          <Text style={styles.answerLabel}>你的答案</Text>
+          <Text style={styles.answerWrong}>{w.userAnswer || '未作答'}</Text>
+        </View>
+        <Icon name="arrow-forward" size={16} color="#8E8E93" />
+        <View style={styles.answerBadge}>
+          <Text style={styles.answerLabel}>正确答案</Text>
+          <Text style={styles.answerCorrect}>{w.correctAnswer || '?'}</Text>
+        </View>
+      </View>
+      {w.explanation && <Text style={styles.explanation}>{w.explanation}</Text>}
+
+      {/* Review action buttons */}
+      {!w.reviewState?.completedAll && (
+        <View style={styles.reviewActions}>
+          <TouchableOpacity
+            style={styles.rememberBtn}
+            onPress={onRemember}
+          >
+            <Icon name="check" size={16} color="#34C759" />
+            <Text style={styles.rememberBtnText}>记住了</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.forgetBtn}
+            onPress={onForget}
+          >
+            <Icon name="refresh" size={16} color="#FF9500" />
+            <Text style={styles.forgetBtnText}>还没记住</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {w.reviewState?.completedAll && (
+        <View style={styles.doneBadge}>
+          <Icon name="verified" size={16} color="#34C759" />
+          <Text style={styles.doneText}>已完全掌握</Text>
+        </View>
+      )}
+
+      {w.explanation ? null : (
+        <View style={styles.noExplanationHint}>
+          <Icon name="info-outline" size={14} color="#8E8E93" />
+          <Text style={styles.noExplanationHintText}>暂无本地解析，可查看相关课程学习</Text>
+        </View>
+      )}
+      <TouchableOpacity
+        style={styles.courseBtn}
+        onPress={onViewCourse}
+      >
+        <Icon name="menu-book" size={16} color="#007AFF" />
+        <Text style={styles.courseBtnText}>查看相关课程</Text>
+      </TouchableOpacity>
+    </View>
+  );
+});
 
 /** 安全解析日期字符串为本地日期对象，避免 new Date('YYYY-MM-DD') 解析为 UTC 零点的时区歧义 */
 function parseDateSafe(dateStr) {
@@ -354,6 +435,17 @@ export default function WrongAnswerScreen({ navigation }) {
     );
   }
 
+  // P1-5: loading 状态应该在 fetch 期间渲染 ActivityIndicator，
+  // 在结果返回后（finally）才设为 false，确保用户能看到加载指示器
+  if (loading) {
+    return (
+      <View style={styles.empty}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.emptyTitle}>加载中...</Text>
+      </View>
+    );
+  }
+
   if (!wrongAnswers?.length) {
     return (
       <View style={styles.empty}>
@@ -436,96 +528,36 @@ export default function WrongAnswerScreen({ navigation }) {
               const reviewProgress = w.reviewState?.currentInterval || 1;
               const maxIntervals = 6;
 
+              // P1-6: 使用 React.memo 包裹的 WrongAnswerCard 组件，
+              // 避免每次 refresh 时所有卡片都重建
               return (
-                <View key={w.id || i} style={[styles.card, due && styles.cardDue]}>
-                  {/* Review status bar */}
-                  <View style={styles.statusBar}>
-                    <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-                    <Text style={[styles.statusText, { color: statusColor }]}>{statusText}</Text>
-                    {!w.reviewState?.completedAll && (
-                      <View style={styles.progressRow}>
-                        {Array.from({ length: maxIntervals }).map((_, idx) => (
-                          <View
-                            key={idx}
-                            style={[
-                              styles.progressDot,
-                              { backgroundColor: idx < reviewProgress ? color : '#E5E5EA' },
-                            ]}
-                          />
-                        ))}
-                      </View>
-                    )}
-                  </View>
-
-                  <Text style={styles.question} numberOfLines={2}>{w.question || '未知题目'}</Text>
-                  <View style={styles.answerRow}>
-                    <View style={styles.answerBadge}>
-                      <Text style={styles.answerLabel}>你的答案</Text>
-                      <Text style={styles.answerWrong}>{w.userAnswer || '未作答'}</Text>
-                    </View>
-                    <Icon name="arrow-forward" size={16} color="#8E8E93" />
-                    <View style={styles.answerBadge}>
-                      <Text style={styles.answerLabel}>正确答案</Text>
-                      <Text style={styles.answerCorrect}>{w.correctAnswer || '?'}</Text>
-                    </View>
-                  </View>
-                  {w.explanation && <Text style={styles.explanation}>{w.explanation}</Text>}
-
-                  {/* Review action buttons */}
-                  {!w.reviewState?.completedAll && (
-                    <View style={styles.reviewActions}>
-                      <TouchableOpacity
-                        style={styles.rememberBtn}
-                        onPress={async () => {
-                          try {
-                            await reviewWrongQuestion(w.id, { is_correct: true });
-                            markWrongAnswerReviewed && markWrongAnswerReviewed(w.id, true);
-                          } catch (e) {
-                            console.warn('复习结果上报失败:', e.message);
-                          }
-                        }}
-                      >
-                        <Icon name="check" size={16} color="#34C759" />
-                        <Text style={styles.rememberBtnText}>记住了</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={styles.forgetBtn}
-                        onPress={async () => {
-                          try {
-                            await reviewWrongQuestion(w.id, { is_correct: false });
-                            markWrongAnswerReviewed && markWrongAnswerReviewed(w.id, false);
-                          } catch (e) {
-                            console.warn('复习结果上报失败:', e.message);
-                          }
-                        }}
-                      >
-                        <Icon name="refresh" size={16} color="#FF9500" />
-                        <Text style={styles.forgetBtnText}>还没记住</Text>
-                      </TouchableOpacity>
-                    </View>
-                  )}
-
-                  {w.reviewState?.completedAll && (
-                    <View style={styles.doneBadge}>
-                      <Icon name="verified" size={16} color="#34C759" />
-                      <Text style={styles.doneText}>已完全掌握</Text>
-                    </View>
-                  )}
-
-                  {w.explanation ? null : (
-                    <View style={styles.noExplanationHint}>
-                      <Icon name="info-outline" size={14} color="#8E8E93" />
-                      <Text style={styles.noExplanationHintText}>暂无本地解析，可查看相关课程学习</Text>
-                    </View>
-                  )}
-                  <TouchableOpacity
-                    style={styles.courseBtn}
-                    onPress={() => navigation.navigate('CourseTab')}
-                  >
-                    <Icon name="menu-book" size={16} color="#007AFF" />
-                    <Text style={styles.courseBtnText}>查看相关课程</Text>
-                  </TouchableOpacity>
-                </View>
+                <WrongAnswerCard
+                  key={w.id || i}
+                  w={w}
+                  idx={i}
+                  due={due}
+                  statusText={statusText}
+                  statusColor={statusColor}
+                  reviewProgress={reviewProgress}
+                  maxIntervals={maxIntervals}
+                  onRemember={async () => {
+                    try {
+                      await reviewWrongQuestion(w.id, { is_correct: true });
+                      markWrongAnswerReviewed && markWrongAnswerReviewed(w.id, true);
+                    } catch (e) {
+                      console.warn('复习结果上报失败:', e.message);
+                    }
+                  }}
+                  onForget={async () => {
+                    try {
+                      await reviewWrongQuestion(w.id, { is_correct: false });
+                      markWrongAnswerReviewed && markWrongAnswerReviewed(w.id, false);
+                    } catch (e) {
+                      console.warn('复习结果上报失败:', e.message);
+                    }
+                  }}
+                  onViewCourse={() => navigation.navigate('CourseTab')}
+                />
               );
             })}
           </View>
@@ -551,13 +583,13 @@ const styles = StyleSheet.create({
   statBadge: { backgroundColor:'#fff', borderRadius:12, paddingHorizontal:12, paddingVertical:6, alignItems:'center', shadowColor:'#000', shadowOffset:{w:0,h:1}, shadowOpacity:0.03, shadowRadius:3 },
   statBadgeGreen: { backgroundColor:'#F0FFF4' },
   statNum: { fontSize:16, fontWeight:'800', color:'#000' },
-  statLabel: { fontSize:10, color:'#8E8E93', marginTop:1 },
+  statLabel: { fontSize:12, color:'#8E8E93', marginTop:1 },
 
   // 网络错误提示
   errorBanner: { flexDirection:'row', alignItems:'center', backgroundColor:'#FF3B30', paddingVertical:10, paddingHorizontal:16, marginHorizontal:16, marginTop:12, borderRadius:10, gap:6 },
   errorBannerText: { color:'#fff', fontSize:13, fontWeight:'500', flex:1 },
   errorBannerRetry: { color:'rgba(255,255,255,0.8)', fontSize:12, fontWeight:'600' },
-  forgetRateHint: { fontSize:11, color:'#8E8E93', marginTop:8, lineHeight:16 },
+  forgetRateHint: { fontSize:12, color:'#8E8E93', marginTop:8, lineHeight:16 },
 
   group: { marginBottom:20, paddingHorizontal:16 },
   groupHead: { flexDirection:'row', alignItems:'center', marginBottom:10, gap:8 },
@@ -578,16 +610,16 @@ const styles = StyleSheet.create({
   question: { fontSize:14, color:'#000', fontWeight:'500', lineHeight:20, marginBottom:10 },
   answerRow: { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:12, marginBottom:8 },
   answerBadge: { alignItems:'center', flex:1 },
-  answerLabel: { fontSize:11, color:'#8E8E93', marginBottom:2 },
+  answerLabel: { fontSize:12, color:'#8E8E93', marginBottom:2 },
   answerWrong: { fontSize:15, fontWeight:'700', color:'#FF3B30' },
   answerCorrect: { fontSize:15, fontWeight:'700', color:'#34C759' },
   explanation: { fontSize:13, color:'#666', lineHeight:20, backgroundColor:'#F2F2F7', borderRadius:8, padding:10, marginTop:8 },
 
   // Review actions
   reviewActions: { flexDirection:'row', gap:10, marginTop:12 },
-  rememberBtn: { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', backgroundColor:'#F0FFF4', borderRadius:10, paddingVertical:10, gap:4, borderWidth:1, borderColor:'#D1F0D9' },
+  rememberBtn: { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', backgroundColor:'#F0FFF4', borderRadius:10, paddingVertical:14, gap:4, borderWidth:1, borderColor:'#D1F0D9' },
   rememberBtnText: { fontSize:14, color:'#34C759', fontWeight:'600' },
-  forgetBtn: { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', backgroundColor:'#FFF8F0', borderRadius:10, paddingVertical:10, gap:4, borderWidth:1, borderColor:'#FFE0B2' },
+  forgetBtn: { flex:1, flexDirection:'row', alignItems:'center', justifyContent:'center', backgroundColor:'#FFF8F0', borderRadius:10, paddingVertical:14, gap:4, borderWidth:1, borderColor:'#FFE0B2' },
   forgetBtnText: { fontSize:14, color:'#FF9500', fontWeight:'600' },
 
   doneBadge: { flexDirection:'row', alignItems:'center', justifyContent:'center', marginTop:12, paddingVertical:8, backgroundColor:'#F0FFF4', borderRadius:10, gap:4 },
@@ -595,7 +627,7 @@ const styles = StyleSheet.create({
 
   aiBtn: { flexDirection:'row', alignItems:'center', justifyContent:'center', marginTop:10, paddingVertical:8, gap:4, borderRadius:10, backgroundColor:'#F5F0FF' },
   aiBtnText: { fontSize:13, color:'#AF52DE', fontWeight:'500' },
-  courseBtn: { flexDirection:'row', alignItems:'center', justifyContent:'center', marginTop:10, paddingVertical:8, gap:4, borderRadius:10, backgroundColor:'#EBF5FF' },
+  courseBtn: { flexDirection:'row', alignItems:'center', justifyContent:'center', marginTop:10, paddingVertical:12, gap:4, borderRadius:10, backgroundColor:'#EBF5FF' },
   courseBtnText: { fontSize:13, color:'#007AFF', fontWeight:'500' },
   noExplanationHint: { flexDirection:'row', alignItems:'center', justifyContent:'center', marginTop:10, gap:4 },
   noExplanationHintText: { fontSize:12, color:'#8E8E93' },
@@ -613,7 +645,7 @@ const styles = StyleSheet.create({
     flexDirection:'row', alignItems:'center', paddingHorizontal:12, paddingTop:48, paddingBottom:10,
     backgroundColor:'#fff', gap:10,
   },
-  practiceQuizBackBtn: { padding:4 },
+  practiceQuizBackBtn: { padding:8 },
   practiceQuizProgressBar: { flex:1, height:4, backgroundColor:'#E5E5EA', borderRadius:2, overflow:'hidden' },
   practiceQuizProgressFill: { height:'100%', backgroundColor:'#4CAF50', borderRadius:2 },
   practiceQuizCounter: { fontSize:13, fontWeight:'600', color:'#8E8E93', minWidth:36, textAlign:'right' },

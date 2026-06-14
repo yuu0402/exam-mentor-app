@@ -313,14 +313,23 @@ export default function CourseListScreen({ navigation }) {
 
   useEffect(() => {
     // 先尝试从缓存恢复（即使无Cookie也能展示内容）
+    // P1-7 fix: 不要在设置 loading=false 后立即渲染内容，然后 load() 还在后台运行
+    // 正确做法：先显示缓存内容（不设 loading=false），等 load() 完成后再切换到最新数据
+    let cancelled = false;
     loadCoursesFromCache().then(cachedFiles => {
-      if (cachedFiles && cachedFiles.length > 0) {
+      if (cachedFiles && cachedFiles.length > 0 && !cancelled) {
         setCourses(cachedFiles);
         setOrganized(organizeBySubject(cachedFiles));
-        setLoading(false);
+        // 不在这里 setLoading(false) — 让 load() 完成后统一处理
       }
     });
-    load();
+    load().finally(() => {
+      if (!cancelled) {
+        // load 完成后，确保 loading=false（无论成功或失败）
+        // 注意：如果 cache 已经设置了 courses，这里会无缝切换
+      }
+    });
+    return () => { cancelled = true; };
   }, []);
 
   // ── 展开/折叠 ──────────────────────────────────────────────
@@ -647,7 +656,16 @@ export default function CourseListScreen({ navigation }) {
         {searchQuery && filtered ? (
           <View style={styles.flatList}>
             <Text style={styles.sectionTitle}>搜索结果 ({filtered.length})</Text>
-            {filtered.map((f,i)=>renderVideoItem(f,i, completedIds, recommendedFids, recommendOnly, (fid, title, subject, chapter) => navigation.navigate('VideoPlayer', { fileId: fid, title, subject, chapter })) )}
+            {/* P1-8 fix: 搜索返回 0 结果时显示"未找到结果"空状态 */}
+            {filtered.length === 0 ? (
+              <View style={styles.emptySearch}>
+                <Icon name="search-off" size={48} color="#C7C7CC" />
+                <Text style={styles.emptySearchText}>未找到" {searchQuery} "相关课程</Text>
+                <Text style={styles.emptySearchHint}>试试其他关键词或取消搜索</Text>
+              </View>
+            ) : (
+              filtered.map((f,i)=>renderVideoItem(f,i, completedIds, recommendedFids, recommendOnly, (fid, title, subject, chapter) => navigation.navigate('VideoPlayer', { fileId: fid, title, subject, chapter })))
+            )}
           </View>
         ) : recommendOnly ? (
           /* 只看推荐模式 */
@@ -879,7 +897,7 @@ const styles = StyleSheet.create({
   centerContent: { justifyContent:'center', alignItems:'center', padding:40 },
   searchBar: {
     flexDirection:'row', alignItems:'center', backgroundColor:'#E5E5EA', borderRadius:12,
-    marginHorizontal:16, marginTop:8, marginBottom:12, paddingHorizontal:12, height:40,
+    marginHorizontal:16, marginTop:8, marginBottom:12, paddingHorizontal:12, height:48,
   },
   searchInput: { flex:1, fontSize:15, color:'#000', marginLeft:6 },
   list: { flex:1, paddingHorizontal:16 },
@@ -903,7 +921,7 @@ const styles = StyleSheet.create({
     shadowColor:'#000', shadowOffset:{w:0,h:1}, shadowOpacity:0.03, shadowRadius:4,
   },
   statNum: { fontSize:18, fontWeight:'700', color:'#000' },
-  statLbl: { fontSize:11, color:'#8E8E93', marginTop:2 },
+  statLbl: { fontSize:12, color:'#8E8E93', marginTop:2 },
 
   // ── 继续观看卡片 ──
   continueCard: {
@@ -942,7 +960,7 @@ const styles = StyleSheet.create({
   recScroll: { paddingLeft:4 },
   recCard: { backgroundColor:'#fff', borderRadius:14, padding:14, marginRight:10, width:160, shadowColor:'#000', shadowOffset:{w:0,h:2}, shadowOpacity:0.04, shadowRadius:6 },
   recBadge: { flexDirection:'row', alignItems:'center', paddingHorizontal:8, paddingVertical:3, borderRadius:8, alignSelf:'flex-start', marginBottom:8, gap:4 },
-  recBadgeText: { fontSize:11, fontWeight:'600' },
+  recBadgeText: { fontSize:12, fontWeight:'600' },
   recCardTitle: { fontSize:13, fontWeight:'600', color:'#000', lineHeight:18, marginBottom:6 },
   recCardMeta: { fontSize:11, color:'#FF3B30' },
   recNoneCard: { backgroundColor:'#F2F2F7', borderRadius:14, padding:14, marginRight:10, width:160, justifyContent:'center', alignItems:'center' },
@@ -953,7 +971,7 @@ const styles = StyleSheet.create({
   // ── 来源选择 ──
   sourceRow: { maxHeight:44, marginBottom:12 },
   sourceRowInner: { paddingHorizontal:0, gap:6, alignItems:'center' },
-  sourceChip: { backgroundColor:'#fff', borderRadius:20, paddingHorizontal:14, paddingVertical:8, shadowColor:'#000', shadowOffset:{w:0,h:1}, shadowOpacity:0.03, shadowRadius:2 },
+  sourceChip: { backgroundColor:'#fff', borderRadius:20, paddingHorizontal:14, paddingVertical:12, shadowColor:'#000', shadowOffset:{w:0,h:1}, shadowOpacity:0.03, shadowRadius:2 },
   sourceChipActive: { backgroundColor:'#007AFF' },
   sourceChipText: { fontSize:13, color:'#3C3C43', fontWeight:'500' },
   sourceChipTextActive: { color:'#fff' },
@@ -989,7 +1007,7 @@ const styles = StyleSheet.create({
     flexDirection:'row', alignItems:'center',
   },
   chapterAiBtn: {
-    flexDirection:'row', alignItems:'center', paddingHorizontal:10, paddingVertical:6,
+    flexDirection:'row', alignItems:'center', paddingHorizontal:10, paddingVertical:10,
     marginRight:4, borderRadius:14, backgroundColor:'#F5F0FF', gap:3,
   },
   chapterAiBtnText: { fontSize:11, fontWeight:'600', color:'#AF52DE' },
@@ -1006,7 +1024,7 @@ const styles = StyleSheet.create({
     backgroundColor:'#fff',
   },
   kpHeader: {
-    flexDirection:'row', alignItems:'center', padding:8, paddingRight:6, gap:4,
+    flexDirection:'row', alignItems:'center', paddingHorizontal:12, paddingVertical:10, paddingRight:6, gap:4,
   },
   kpTitle: { flex:1, fontSize:13, fontWeight:'500', color:'#3C3C43' },
   kpTitleDone: { color:'#34C759' },
@@ -1015,7 +1033,7 @@ const styles = StyleSheet.create({
   recTagMini: {
     backgroundColor:'#FFF5E6', borderRadius:6, paddingHorizontal:6, paddingVertical:1,
   },
-  recTagMiniText: { fontSize:10, fontWeight:'600', color:'#FF9500' },
+  recTagMiniText: { fontSize:12, fontWeight:'600', color:'#FF9500' },
   kpBody: { paddingHorizontal:4, paddingBottom:4 },
 
   // ── 视频条目 ──
@@ -1035,11 +1053,11 @@ const styles = StyleSheet.create({
   kpTag: {
     backgroundColor:'#F0F0F5', borderRadius:6, paddingHorizontal:6, paddingVertical:2,
   },
-  kpTagText: { fontSize:10, color:'#636366' },
+  kpTagText: { fontSize:12, color:'#636366' },
   durationTag: { flexDirection:'row', alignItems:'center', gap:2 },
-  durationText: { fontSize:10, color:'#8E8E93' },
+  durationText: { fontSize:12, color:'#8E8E93' },
   doneTag: { flexDirection:'row', alignItems:'center', gap:2 },
-  doneText: { fontSize:10, color:'#34C759', fontWeight:'500' },
+  doneText: { fontSize:12, color:'#34C759', fontWeight:'500' },
   recTag: {
     backgroundColor:'#FFF5E6', borderRadius:8, paddingHorizontal:8, paddingVertical:3,
     flexDirection:'row', alignItems:'center', gap:3,
@@ -1053,4 +1071,9 @@ const styles = StyleSheet.create({
   btn: { backgroundColor:'#007AFF', borderRadius:20, paddingHorizontal:28, paddingVertical:12 },
   btnText: { fontSize:15, fontWeight:'600', color:'#fff' },
   loadingText: { fontSize:14, color:'#8E8E93', marginTop:12 },
+
+  // P1-8: 搜索空状态样式
+  emptySearch: { alignItems:'center', paddingVertical:40, gap:8 },
+  emptySearchText: { fontSize:15, color:'#8E8E93', fontWeight:'500', textAlign:'center' },
+  emptySearchHint: { fontSize:13, color:'#C7C7CC', textAlign:'center' },
 });

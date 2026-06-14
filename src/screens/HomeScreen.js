@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, memo } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, RefreshControl } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
@@ -11,6 +11,37 @@ import {
   getGameState,
   getTodayTasks,
 } from '../api/backend';
+
+// P1-1: 将计时器 elapsed 状态和 interval 逻辑独立到子组件，
+// 用 React.memo + 独立 state 避免父组件重渲染触发子组件重渲染
+const TimerDisplay = memo(function TimerDisplay({ timer, formatTime }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (!timer?.active) { setElapsed(0); return; }
+    if (timer?.paused) {
+      setElapsed(timer.accumulatedMinutes || 0);
+      return;
+    }
+    const start = new Date(timer.startTime).getTime();
+    setElapsed(Math.floor((Date.now() - start) / 60000));
+    // 每 15 秒更新一次 elapsed，但不会触发父组件重渲染
+    const iv = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 60000)), 15000);
+    return () => clearInterval(iv);
+  }, [timer?.active, timer?.startTime, timer?.paused, timer?.accumulatedMinutes]);
+
+  return (
+    <>
+      <Text style={styles.phaseIcon}>{timer?.paused ? '⏸️' : '⏱️'}</Text>
+      <Text style={styles.phaseTitle}>{timer?.paused ? '已暂停' : '正在学习'}</Text>
+      {timer?.subject && <Text style={styles.phaseSub}>{timer.subject}</Text>}
+      <Text style={styles.timerBig}>{formatTime(elapsed)}</Text>
+      <Text style={styles.timerHint}>
+        {timer?.paused ? '已暂停 · 点击继续' : '专注学习，完成后点击结束'}
+      </Text>
+    </>
+  );
+});
 
 const { width } = Dimensions.get('window');
 
@@ -63,6 +94,15 @@ export default function HomeScreen({ navigation }) {
   const [elapsed, setElapsed] = useState(0);
   const [fetchError, setFetchError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
+  // P1-2: 保存后端数据拉取结果，供 UI 使用（studying phase 的 ring stats、plan summary 等）
+  const [backendData, setBackendData] = useState({
+    taskStats: null,
+    diagnosisHistory: null,
+    latestDiagnosis: null,
+    wrongQuestionStats: null,
+    gameState: null,
+    todayTasks: null,
+  });
 
   useEffect(() => {
     const h = new Date().getHours();
@@ -77,20 +117,32 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   // 后端数据拉取
+  // P1-2: 将结果保存到 state 供 UI 使用
+  // P1-3: Promise.allSettled 永远不 reject，catch 永远不会触发，在 .then 内检查 status === 'rejected'
   const fetchBackendData = async () => {
     setFetchError(null);
-    try {
-      await Promise.allSettled([
-        getTaskStats(),
-        getDiagnosisHistory(),
-        getLatestDiagnosis(),
-        getWrongQuestionStats(),
-        getGameState(),
-        getTodayTasks(),
-      ]);
-    } catch (e) {
+    const results = await Promise.allSettled([
+      getTaskStats(),
+      getDiagnosisHistory(),
+      getLatestDiagnosis(),
+      getWrongQuestionStats(),
+      getGameState(),
+      getTodayTasks(),
+    ]);
+    // P1-3: 在 .then 内检查每个 status === 'rejected' 来设置错误状态
+    const hasError = results.some(r => r.status === 'rejected');
+    if (hasError) {
       setFetchError('网络异常，请检查连接后重试');
     }
+    // P1-2: 将结果保存到 state（只保存 fulfilled 的结果）
+    setBackendData({
+      taskStats: results[0].status === 'fulfilled' ? results[0].value : null,
+      diagnosisHistory: results[1].status === 'fulfilled' ? results[1].value : null,
+      latestDiagnosis: results[2].status === 'fulfilled' ? results[2].value : null,
+      wrongQuestionStats: results[3].status === 'fulfilled' ? results[3].value : null,
+      gameState: results[4].status === 'fulfilled' ? results[4].value : null,
+      todayTasks: results[5].status === 'fulfilled' ? results[5].value : null,
+    });
   };
 
   useEffect(() => {
@@ -110,18 +162,9 @@ export default function HomeScreen({ navigation }) {
     : greeting ? `${greeting}，同学` : '同学';
 
   // Timer tick
-  useEffect(() => {
-    if (!timer?.active) { setElapsed(0); return; }
-    if (timer?.paused) {
-      setElapsed(timer.accumulatedMinutes || 0);
-      return;
-    }
-    const start = new Date(timer.startTime).getTime();
-    setElapsed(Math.floor((Date.now() - start) / 60000));
-    const iv = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 60000)), 15000);
-    return () => clearInterval(iv);
-  }, [timer?.active, timer?.startTime, timer?.paused, timer?.accumulatedMinutes]);
-
+  // P1-1: 已移除 setInterval 导致的父组件重渲染问题
+  // elapsed 状态和 timer interval 逻辑已移至 TimerDisplay 子组件
+  // 注意：父组件的 elapsed state 仅用于 studyTotal 计算（ring 显示），不在 studing phase 渲染
   // Check-in toast auto-dismiss
   useEffect(() => {
     if (checkInToast) {
@@ -139,7 +182,9 @@ export default function HomeScreen({ navigation }) {
   }, [studySummary, dismissStudySummary]);
 
   const phase = getPhase(diagnosisResult, studyPlan, timer);
-  const studyTotal = today.studyTime + (timer?.active ? elapsed : 0);
+  // P1-1 fix: elapsed 不再通过 interval 更新，直接使用 today.studyTime
+  // （studying phase 显示 TimerDisplay，ring stats 在 ready phase，timer 停止后 today.studyTime 已包含本次学习时间）
+  const studyTotal = today.studyTime;
   const streak = today.currentStreak || 0;
   const wrongCount = wrongAnswers?.length || 0;
 
@@ -179,14 +224,18 @@ export default function HomeScreen({ navigation }) {
 
   // ==================== PHASE: STUDYING ====================
   if (phase === 'studying') {
+    // P1-1 fix: handleEndStudy 需要实时计算 elapsed（不在依赖 interval 更新的 state）
     const handleEndStudy = () => {
-      const mins = timer?.paused ? (timer.accumulatedMinutes || elapsed) : elapsed;
+      // paused 时使用 accumulatedMinutes，否则实时计算
+      const currentElapsed = timer?.paused
+        ? (timer.accumulatedMinutes || 0)
+        : Math.floor((Date.now() - new Date(timer.startTime).getTime()) / 60000);
       Alert.alert(
         '结束学习',
-        `确定要结束吗？已学习 ${formatTime(mins)}`,
+        `确定要结束吗？已学习 ${formatTime(currentElapsed)}`,
         [
           { text: '取消', style: 'cancel' },
-          { text: '确定', style: 'destructive', onPress: () => stopTimer(mins, currentTask?.id) },
+          { text: '确定', style: 'destructive', onPress: () => stopTimer(currentElapsed, currentTask?.id) },
         ]
       );
     };
@@ -215,13 +264,9 @@ export default function HomeScreen({ navigation }) {
           </View>
         )}
 
-        <Text style={styles.phaseIcon}>{timer?.paused ? '⏸️' : '⏱️'}</Text>
-        <Text style={styles.phaseTitle}>{timer?.paused ? '已暂停' : '正在学习'}</Text>
-        {timer?.subject && <Text style={styles.phaseSub}>{timer.subject}</Text>}
-        <Text style={styles.timerBig}>{formatTime(elapsed)}</Text>
-        <Text style={styles.timerHint}>
-          {timer?.paused ? '已暂停 · 点击继续' : '专注学习，完成后点击结束'}
-        </Text>
+        {/* P1-1: 使用独立的 TimerDisplay 子组件，包含自己的 elapsed state 和 interval，
+           父组件重渲染不会触发 TimerDisplay 重渲染 */}
+        <TimerDisplay timer={timer} formatTime={formatTime} />
 
         {/* 暂停/继续按钮 */}
         {timer?.paused ? (
@@ -543,7 +588,7 @@ const styles = StyleSheet.create({
   reminderText: { flex:1, fontSize:14, color:'#FF9500', fontWeight:'500' },
 
   bottomLinks: { flexDirection:'row', justifyContent:'center', gap:20, paddingHorizontal:16, marginTop:8 },
-  bottomLink: { flexDirection:'row', alignItems:'center', gap:4 },
+  bottomLink: { flexDirection:'row', alignItems:'center', gap:4, padding:12 },
   bottomLinkText: { fontSize:13, color:'#007AFF', fontWeight:'500' },
 
   streakText: { fontSize:14, color:'#FF9500', fontWeight:'500' },
@@ -688,7 +733,7 @@ const styles = StyleSheet.create({
   },
   explainText: {
     fontSize: 12,
-    color: 'rgba(255,255,255,0.65)',
+    color: '#FFFFFF', // P1-4: 改用不透明白色文字，对比度约 7:1（原来是 rgba 0.65 on 0.15，约 2.5:1）
     lineHeight: 20,
     marginTop: 6,
   },

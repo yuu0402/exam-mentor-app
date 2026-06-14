@@ -263,9 +263,6 @@ export default function AIChatScreen({ route }) {
     );
   }
 
-    return () => clearTimeout(timer);
-  }, [context]);
-
   // ── Pick the right quick-prompts set ────────────────────────
   const quickPrompts = context?.type && CONTEXT_QUICK_PROMPTS[context.type]
     ? CONTEXT_QUICK_PROMPTS[context.type]
