@@ -27,6 +27,7 @@ export default function QuickPracticeScreen({ navigation, route }) {
   const [showResult, setShowResult] = useState(false);
   const [finished, setFinished] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
 
   useEffect(() => {
     loadQuestions();
@@ -34,6 +35,7 @@ export default function QuickPracticeScreen({ navigation, route }) {
 
   const loadQuestions = async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       // 优先从后端拉取待复习错题
       let pool = [];
@@ -75,6 +77,7 @@ export default function QuickPracticeScreen({ navigation, route }) {
       setQuestions(shuffled.slice(0, Math.min(count, shuffled.length)));
     } catch (e) {
       setQuestions([]);
+      setFetchError('网络异常，请检查连接后重试');
     } finally {
       setLoading(false);
     }
@@ -249,6 +252,15 @@ export default function QuickPracticeScreen({ navigation, route }) {
         <Text style={styles.quizCounter}>{currentIndex + 1}/{questions.length}</Text>
       </View>
 
+      {/* 网络错误提示 */}
+      {fetchError && (
+        <TouchableOpacity style={styles.errorBanner} onPress={loadQuestions}>
+          <Icon name="wifi-off" size={16} color="#fff" />
+          <Text style={styles.errorBannerText}>{fetchError}</Text>
+          <Text style={styles.errorBannerRetry}>点击重试</Text>
+        </TouchableOpacity>
+      )}
+
       {/* 题目 */}
       <ScrollView style={styles.quizBody} contentContainerStyle={styles.quizBodyInner} refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CAF50']} />
@@ -330,6 +342,11 @@ const styles = StyleSheet.create({
   quizProgressBar: { flex: 1, height: 4, backgroundColor: '#E5E5EA', borderRadius: 2, overflow: 'hidden' },
   quizProgressFill: { height: '100%', backgroundColor: '#007AFF', borderRadius: 2 },
   quizCounter: { fontSize: 13, fontWeight: '600', color: '#8E8E93', minWidth: 36, textAlign: 'right' },
+
+  // 网络错误提示
+  errorBanner: { flexDirection:'row', alignItems:'center', backgroundColor:'#FF3B30', paddingVertical:10, paddingHorizontal:16, marginHorizontal:16, marginTop:8, borderRadius:10, gap:6 },
+  errorBannerText: { color:'#fff', fontSize:13, fontWeight:'500', flex:1 },
+  errorBannerRetry: { color:'rgba(255,255,255,0.8)', fontSize:12, fontWeight:'600' },
 
   // ── 题目区 ──
   quizBody: { flex: 1 },

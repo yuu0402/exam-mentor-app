@@ -47,11 +47,13 @@ export default function WrongAnswerScreen({ navigation }) {
   const [practiceSelected, setPracticeSelected] = useState(null);
   const [practiceAnswers, setPracticeAnswers] = useState({});
   const [practiceFinished, setPracticeFinished] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
   const today = formatDate(new Date());
 
   // 从后端拉取错题数据
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const [wqRes, statsRes, queueRes] = await Promise.allSettled([
         getWrongQuestions({ page: 1, page_size: 100 }),
@@ -76,6 +78,7 @@ export default function WrongAnswerScreen({ navigation }) {
       }
     } catch (e) {
       console.warn('拉取错题数据失败，使用本地缓存:', e.message);
+      setFetchError('网络异常，请检查连接后重试');
     } finally {
       setLoading(false);
     }
@@ -408,6 +411,15 @@ export default function WrongAnswerScreen({ navigation }) {
         <Text style={styles.forgetRateHint}>记忆曲线正常范围：随着复习次数增加，遗忘率会逐渐下降</Text>
       </View>
 
+      {/* 网络错误提示 */}
+      {fetchError && (
+        <TouchableOpacity style={styles.errorBanner} onPress={fetchData}>
+          <Icon name="wifi-off" size={16} color="#fff" />
+          <Text style={styles.errorBannerText}>{fetchError}</Text>
+          <Text style={styles.errorBannerRetry}>点击重试</Text>
+        </TouchableOpacity>
+      )}
+
       {grouped.map(([subject, items]) => {
         const color = SUBJECT_COLORS[subject] || '#8E8E93';
         return (
@@ -540,6 +552,11 @@ const styles = StyleSheet.create({
   statBadgeGreen: { backgroundColor:'#F0FFF4' },
   statNum: { fontSize:16, fontWeight:'800', color:'#000' },
   statLabel: { fontSize:10, color:'#8E8E93', marginTop:1 },
+
+  // 网络错误提示
+  errorBanner: { flexDirection:'row', alignItems:'center', backgroundColor:'#FF3B30', paddingVertical:10, paddingHorizontal:16, marginHorizontal:16, marginTop:12, borderRadius:10, gap:6 },
+  errorBannerText: { color:'#fff', fontSize:13, fontWeight:'500', flex:1 },
+  errorBannerRetry: { color:'rgba(255,255,255,0.8)', fontSize:12, fontWeight:'600' },
   forgetRateHint: { fontSize:11, color:'#8E8E93', marginTop:8, lineHeight:16 },
 
   group: { marginBottom:20, paddingHorizontal:16 },

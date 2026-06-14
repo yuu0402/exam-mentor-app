@@ -301,6 +301,15 @@ export default function StudyPlanScreen({ navigation }) {
         </Text>
       </View>
 
+      {/* 网络错误提示 */}
+      {fetchError && (
+        <TouchableOpacity style={styles.errorBanner} onPress={generatePlans}>
+          <Icon name="wifi-off" size={16} color="#fff" />
+          <Text style={styles.errorBannerText}>{fetchError}</Text>
+          <Text style={styles.errorBannerRetry}>点击重试</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Tab bar */}
       <View style={styles.tabBar}>
         {[
@@ -797,6 +806,12 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 15,
   },
+
+  // 网络错误提示
+  errorBanner: { flexDirection:'row', alignItems:'center', backgroundColor:'#FF3B30', paddingVertical:10, paddingHorizontal:16, marginHorizontal:16, marginTop:12, borderRadius:10, gap:6 },
+  errorBannerText: { color:'#fff', fontSize:13, fontWeight:'500', flex:1 },
+  errorBannerRetry: { color:'rgba(255,255,255,0.8)', fontSize:12, fontWeight:'600' },
+
   header: {
     backgroundColor: '#4CAF50',
     padding: 20,

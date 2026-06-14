@@ -1,0 +1,32 @@
+# 环境变量文件（不应提交）
+.env
+.env.development
+.env.production
+.env.local
+
+# Expo
+.expo/
+dist/
+web-build/
+
+# React Native / Expo
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Xcode
+ios/*.xcworkspace
+ios/build/
+
+# Android
+android/app/build/
+android/.gradle/
+
+# Mac
+.DS_Store
+
+# Logs
+*.log
+
+# Eas
+.credentials.json
