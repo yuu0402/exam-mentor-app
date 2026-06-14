@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
@@ -20,6 +21,7 @@ import { EXAM_SUBJECTS, getSubjectDisplayName } from '../config';
 import {
   generateDynamicPlan,
   getTodayDynamicPlan,
+  getWeeklyStats,
 } from '../api/backend';
 
 export default function StudyPlanScreen({ navigation }) {
@@ -36,9 +38,11 @@ export default function StudyPlanScreen({ navigation }) {
 
   const [activeTab, setActiveTab] = useState('daily'); // daily | weekly | phase
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [learningPath, setLearningPath] = useState(null);
   const [dailyPlan, setDailyPlan] = useState(null);
   const [weeklyPlan, setWeeklyPlan] = useState(null);
+  const [fetchError, setFetchError] = useState(null);
 
   // Loading lock & task manipulation state
   const generatingRef = useRef(false);
@@ -78,14 +82,61 @@ export default function StudyPlanScreen({ navigation }) {
           resourceUrl: t.resource_url || null,
         })),
       };
+      // 获取本周统计，构建"本周任务汇总"
+      let weeklySummary = null;
+      try {
+        const weeklyStats = await getWeeklyStats();
+        // 基于今日计划 + 本周统计生成周汇总
+        const weekTasks = (weeklyStats.tasks || weeklyStats.weekly_tasks || []).length > 0
+          ? weeklyStats.tasks || weeklyStats.weekly_tasks
+          : tasks; // fallback: 使用今日任务作为周汇总基础
+        weeklySummary = {
+          date: new Date().toISOString().split('T')[0],
+          tasks: weekTasks.map((t, idx) => ({
+            id: t.id || `weekly-${idx}`,
+            subject: t.subject || t.title || '数学',
+            title: t.title || t.knowledge_point || t.task || '本周任务',
+            task: t.title || t.knowledge_point || t.task || '本周任务',
+            duration: t.duration_minutes || t.duration || 25,
+            plannedDuration: t.duration_minutes || t.duration || 25,
+            difficulty: t.difficulty || 'medium',
+            status: t.status || 'pending',
+            // 附加本周统计信息
+            completedCount: weeklyStats.completed_count || 0,
+            totalCount: weeklyStats.total_count || weeklyStats.weekly_completed || 0,
+            streakDays: weeklyStats.streak_days || 0,
+          })),
+          totalStudyMinutes: weeklyStats.total_minutes || (tasks.reduce((sum, t) => sum + (t.duration_minutes || 25), 0) * 7),
+          knowledgeItems: [],
+          // 本周汇总摘要
+          summary: {
+            completedCount: weeklyStats.completed_count || 0,
+            totalCount: weeklyStats.total_count || tasks.length * 7,
+            streakDays: weeklyStats.streak_days || 0,
+            weeklyCompleted: weeklyStats.weekly_completed || 0,
+          },
+        };
+      } catch (weeklyErr) {
+        console.warn('获取本周统计失败，使用本地周计划:', weeklyErr.message);
+        // 本地生成周计划
+        try {
+          const path = learningPath || generateLearningPath(diagnosisResult);
+          const today = new Date();
+          const localWeekly = generateWeeklyPlan(path, today);
+          weeklySummary = localWeekly;
+        } catch (localWeeklyErr) {
+          console.warn('本地周计划生成也失败:', localWeeklyErr.message);
+        }
+      }
       // 生成学习路径（本地辅助生成，用于显示阶段信息）
       const path = generateLearningPath(diagnosisResult);
       setLearningPath(path);
       setDailyPlan(mappedDaily);
-      setWeeklyPlan(null);
-      await saveStudyPlan({ learningPath: path, daily: mappedDaily, weekly: null, generatedAt: new Date().toISOString() });
+      setWeeklyPlan(weeklySummary);
+      await saveStudyPlan({ learningPath: path, daily: mappedDaily, weekly: weeklySummary, generatedAt: new Date().toISOString() });
     } catch (error) {
       console.error('生成学习计划失败:', error);
+      setFetchError('网络异常，请检查连接后重试');
       // 降级：尝试只用本地生成
       try {
         const path = generateLearningPath(diagnosisResult);
@@ -104,6 +155,14 @@ export default function StudyPlanScreen({ navigation }) {
       generatingRef.current = false;
     }
   };
+
+  // 下拉刷新
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setSkippedTaskIds([]);
+    await generatePlans();
+    setRefreshing(false);
+  }, []);
 
   // ===== 任务操作函数 =====
 
@@ -261,7 +320,9 @@ export default function StudyPlanScreen({ navigation }) {
         ))}
       </View>
 
-      <ScrollView style={styles.scrollContent}>
+      <ScrollView style={styles.scrollContent} refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CAF50']} />
+      }>
         {/* ===== PHASE TAB: 学习路径总览 ===== */}
         {activeTab === 'phase' ? (
           <>
@@ -704,7 +765,12 @@ export default function StudyPlanScreen({ navigation }) {
         )}
 
         {/* Refresh button */}
-        <TouchableOpacity style={styles.refreshButton} onPress={generatePlans}>
+        <TouchableOpacity style={styles.refreshButton} onPress={async () => {
+          setRefreshing(true);
+          setSkippedTaskIds([]);
+          await generatePlans();
+          setRefreshing(false);
+        }}>
           <Icon name="refresh" size={20} color="#4CAF50" />
           <Text style={styles.refreshButtonText}>重新生成计划</Text>
         </TouchableOpacity>

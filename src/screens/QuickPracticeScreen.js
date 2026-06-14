@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  ActivityIndicator,
+  ActivityIndicator, RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getQuestionsBySubject } from '../utils/diagnosis-system';
@@ -10,12 +10,14 @@ import {
   getTodayReviewQueue,
   reviewWrongQuestion,
 } from '../api/backend';
+import { useApp } from '../context/AppContext';
 
 const OPTION_LABELS = ['A', 'B', 'C', 'D'];
 const OPTION_COLORS = ['#007AFF', '#FF9500', '#34C759', '#FF3B30'];
 
 export default function QuickPracticeScreen({ navigation, route }) {
   const { subject, chapter, title, count = 3 } = route.params || {};
+  const { addWrongAnswer } = useApp();
 
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +26,7 @@ export default function QuickPracticeScreen({ navigation, route }) {
   const [answers, setAnswers] = useState({});
   const [showResult, setShowResult] = useState(false);
   const [finished, setFinished] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadQuestions();
@@ -77,6 +80,17 @@ export default function QuickPracticeScreen({ navigation, route }) {
     }
   };
 
+  // 下拉刷新
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setCurrentIndex(0);
+    setSelectedAnswer(null);
+    setAnswers({});
+    setFinished(false);
+    await loadQuestions();
+    setRefreshing(false);
+  }, []);
+
   const currentQ = questions[currentIndex] || null;
 
   const handleSelect = async (optIdx) => {
@@ -85,6 +99,10 @@ export default function QuickPracticeScreen({ navigation, route }) {
     const isCorrect = label === currentQ?.answer;
     setSelectedAnswer(optIdx);
     setAnswers(prev => ({ ...prev, [currentIndex]: label }));
+    // 答错题时记录到错题本
+    if (!isCorrect && addWrongAnswer) {
+      addWrongAnswer(currentQ);
+    }
     // 上报复习结果到后端
     if (currentQ?.id) {
       try {
@@ -147,7 +165,9 @@ export default function QuickPracticeScreen({ navigation, route }) {
   if (finished && score) {
     const isPerfect = score.correct === score.total;
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.resultContent}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.resultContent} refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CAF50']} />
+      }>
         {/* 结果头部 */}
         <View style={styles.resultHeader}>
           <View style={[styles.resultIconWrap, { backgroundColor: isPerfect ? '#34C759' + '1A' : '#FF9500' + '1A' }]}>
@@ -230,7 +250,9 @@ export default function QuickPracticeScreen({ navigation, route }) {
       </View>
 
       {/* 题目 */}
-      <ScrollView style={styles.quizBody} contentContainerStyle={styles.quizBodyInner}>
+      <ScrollView style={styles.quizBody} contentContainerStyle={styles.quizBodyInner} refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CAF50']} />
+      }>
         {/* 题目标签 */}
         <View style={styles.qMeta}>
           {currentQ.chapter && <Text style={styles.qMetaText}>{currentQ.chapter}</Text>}

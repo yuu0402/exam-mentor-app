@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
 import {
@@ -8,6 +8,9 @@ import {
   getTodayReviewQueue,
   reviewWrongQuestion,
 } from '../api/backend';
+
+const OPTION_LABELS = ['A', 'B', 'C', 'D'];
+const OPTION_COLORS = ['#007AFF', '#FF9500', '#34C759', '#FF3B30'];
 
 const SUBJECT_NAMES = { math:'数学', physics:'物理', english:'英语', chinese:'语文', chemistry:'化学' };
 const SUBJECT_COLORS = { math:'#FF3B30', physics:'#007AFF', english:'#FF9500', chinese:'#34C759', chemistry:'#AF52DE' };
@@ -32,47 +35,62 @@ function formatDate(date) {
 }
 
 export default function WrongAnswerScreen({ navigation }) {
-  const { wrongAnswers: contextWrongAnswers, todayReviewCount: ctxTodayCount, reviewStats: ctxStats, markWrongAnswerReviewed } = useApp();
+  const { wrongAnswers: contextWrongAnswers, todayReviewCount: ctxTodayCount, reviewStats: ctxStats, markWrongAnswerReviewed, addWrongAnswer } = useApp();
   const [wrongAnswers, setWrongAnswers] = useState(contextWrongAnswers || []);
   const [reviewStats, setReviewStats] = useState(ctxStats || {});
   const [todayReviewCount, setTodayReviewCount] = useState(ctxTodayCount || 0);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [practiceMode, setPracticeMode] = useState(false);
+  const [practiceQuestions, setPracticeQuestions] = useState([]);
+  const [practiceIndex, setPracticeIndex] = useState(0);
+  const [practiceSelected, setPracticeSelected] = useState(null);
+  const [practiceAnswers, setPracticeAnswers] = useState({});
+  const [practiceFinished, setPracticeFinished] = useState(false);
   const today = formatDate(new Date());
 
   // 从后端拉取错题数据
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [wqRes, statsRes, queueRes] = await Promise.allSettled([
-          getWrongQuestions({ page: 1, page_size: 100 }),
-          getWrongQuestionStats(),
-          getTodayReviewQueue(),
-        ]);
-        if (wqRes.status === 'fulfilled' && wqRes.value?.items) {
-          setWrongAnswers(wqRes.value.items);
-        }
-        if (statsRes.status === 'fulfilled') {
-          setReviewStats({
-            completedCount: statsRes.value?.mastered || 0,
-            totalCount: statsRes.value?.total || 0,
-            forgetRate: statsRes.value?.total > 0
-              ? Math.round(((statsRes.value?.total - statsRes.value?.mastered) / statsRes.value?.total) * 100)
-              : 0,
-            consecutiveRemembered: 0,
-          });
-        }
-        if (queueRes.status === 'fulfilled' && queueRes.value?.items) {
-          setTodayReviewCount(queueRes.value.items.length);
-        }
-      } catch (e) {
-        console.warn('拉取错题数据失败，使用本地缓存:', e.message);
-      } finally {
-        setLoading(false);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [wqRes, statsRes, queueRes] = await Promise.allSettled([
+        getWrongQuestions({ page: 1, page_size: 100 }),
+        getWrongQuestionStats(),
+        getTodayReviewQueue(),
+      ]);
+      if (wqRes.status === 'fulfilled' && wqRes.value?.items) {
+        setWrongAnswers(wqRes.value.items);
       }
-    };
-    fetchData();
+      if (statsRes.status === 'fulfilled') {
+        setReviewStats({
+          completedCount: statsRes.value?.mastered || 0,
+          totalCount: statsRes.value?.total || 0,
+          forgetRate: statsRes.value?.total > 0
+            ? Math.round(((statsRes.value?.total - statsRes.value?.mastered) / statsRes.value?.total) * 100)
+            : 0,
+          consecutiveRemembered: 0,
+        });
+      }
+      if (queueRes.status === 'fulfilled' && queueRes.value?.items) {
+        setTodayReviewCount(queueRes.value.items.length);
+      }
+    } catch (e) {
+      console.warn('拉取错题数据失败，使用本地缓存:', e.message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // 下拉刷新
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, [fetchData]);
 
   const grouped = useMemo(() => {
     const map = {};
@@ -115,6 +133,224 @@ export default function WrongAnswerScreen({ navigation }) {
     return '#8E8E93';
   };
 
+  // 进入练习模式
+  const enterPracticeMode = () => {
+    const questions = (wrongAnswers || []).map(w => ({
+      id: w.id,
+      question: w.question || '练习题',
+      options: w.options || ['A', 'B', 'C', 'D'],
+      answer: w.correctAnswer || w.answer || 'A',
+      explanation: w.explanation || '',
+      difficulty: w.difficulty || 'medium',
+      subject: w.subject || 'math',
+    }));
+    setPracticeQuestions(questions);
+    setPracticeIndex(0);
+    setPracticeSelected(null);
+    setPracticeAnswers({});
+    setPracticeFinished(false);
+    setPracticeMode(true);
+  };
+
+  // 练习模式：处理选项选择
+  const handlePracticeSelect = (optIdx) => {
+    const q = practiceQuestions[practiceIndex];
+    if (!q) return;
+    const label = OPTION_LABELS[optIdx];
+    const isCorrect = label === q.answer;
+    setPracticeSelected(optIdx);
+    setPracticeAnswers(prev => ({ ...prev, [practiceIndex]: label }));
+    // 答错题时记录到错题本
+    if (!isCorrect && addWrongAnswer) {
+      addWrongAnswer(q);
+    }
+    setTimeout(() => {
+      if (practiceIndex < practiceQuestions.length - 1) {
+        setPracticeIndex(prev => prev + 1);
+        setPracticeSelected(null);
+      } else {
+        setPracticeFinished(true);
+      }
+    }, 800);
+  };
+
+  // 练习模式：重新开始
+  const restartPractice = () => {
+    setPracticeIndex(0);
+    setPracticeSelected(null);
+    setPracticeAnswers({});
+    setPracticeFinished(false);
+  };
+
+  // 练习模式：退出
+  const exitPracticeMode = () => {
+    setPracticeMode(false);
+    setPracticeQuestions([]);
+    setPracticeIndex(0);
+    setPracticeSelected(null);
+    setPracticeAnswers({});
+    setPracticeFinished(false);
+  };
+
+  // 练习模式：用汇总数据统计正确率
+  const practiceScore = useMemo(() => {
+    if (!practiceFinished) return null;
+    let correct = 0;
+    practiceQuestions.forEach((q, idx) => {
+      if (practiceAnswers[idx] === q.answer) correct++;
+    });
+    return {
+      correct,
+      total: practiceQuestions.length,
+      pct: Math.round((correct / practiceQuestions.length) * 100),
+    };
+  }, [practiceFinished, practiceAnswers, practiceQuestions]);
+
+  // 练习模式：未开始（选择了题目但还没开始）
+  if (practiceMode && practiceQuestions.length === 0) {
+    return (
+      <View style={styles.empty}>
+        <Icon name="quiz" size={70} color="#C7C7CC" />
+        <Text style={styles.emptyTitle}>暂无错题可练习</Text>
+        <TouchableOpacity style={styles.goBtn} onPress={exitPracticeMode}>
+          <Text style={styles.goBtnText}>返回错题本</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // 练习模式：结果页
+  if (practiceMode && practiceFinished && practiceScore) {
+    const isPerfect = practiceScore.correct === practiceScore.total;
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.practiceResultContent} refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CAF50']} />
+      }>
+        <View style={styles.practiceResultHeader}>
+          <View style={[styles.practiceResultIconWrap, { backgroundColor: isPerfect ? '#34C759' + '1A' : '#FF9500' + '1A' }]}>
+            <Icon name={isPerfect ? 'emoji-events' : 'school'} size={48} color={isPerfect ? '#34C759' : '#FF9500'} />
+          </View>
+          <Text style={styles.practiceResultTitle}>
+            {isPerfect ? '全对！太厉害了！' : practiceScore.pct >= 60 ? '不错，继续加油！' : '还需多加练习'}
+          </Text>
+          <Text style={styles.practiceResultScore}>
+            {practiceScore.correct}/{practiceScore.total} 正确 ({practiceScore.pct}%)
+          </Text>
+          <View style={styles.practiceResultBarTrack}>
+            <View style={[styles.practiceResultBarFill, {
+              width: `${practiceScore.pct}%`,
+              backgroundColor: isPerfect ? '#34C759' : practiceScore.pct >= 60 ? '#FF9500' : '#FF3B30',
+            }]} />
+          </View>
+        </View>
+        {/* 逐题回顾 */}
+        {practiceQuestions.map((q, idx) => {
+          const userAns = practiceAnswers[idx];
+          const isCorrect = userAns === q.answer;
+          return (
+            <View key={q.id || idx} style={styles.practiceReviewCard}>
+              <View style={styles.practiceReviewQHead}>
+                <View style={[styles.practiceReviewIdx, { backgroundColor: isCorrect ? '#34C759' : '#FF3B30' }]}>
+                  <Text style={styles.practiceReviewIdxText}>{idx + 1}</Text>
+                </View>
+                <Text style={styles.practiceReviewQText}>{q.question}</Text>
+              </View>
+              <View style={styles.practiceReviewOptions}>
+                {q.options.map((opt, oi) => {
+                  const label = OPTION_LABELS[oi];
+                  const isUserChoice = userAns === label;
+                  const isRightAnswer = q.answer === label;
+                  let bg = '#F2F2F7';
+                  let borderColor = 'transparent';
+                  if (isRightAnswer) { bg = '#E8F8EE'; borderColor = '#34C759'; }
+                  if (isUserChoice && !isCorrect) { bg = '#FEE8E8'; borderColor = '#FF3B30'; }
+                  return (
+                    <View key={oi} style={[styles.practiceReviewOpt, { backgroundColor: bg, borderColor }]}>
+                      <Text style={[styles.practiceReviewOptLabel, { color: OPTION_COLORS[oi] }]}>{label}</Text>
+                      <Text style={styles.practiceReviewOptText}>{opt}</Text>
+                      {isRightAnswer && <Icon name="check-circle" size={16} color="#34C759" />}
+                      {isUserChoice && !isCorrect && <Icon name="cancel" size={16} color="#FF3B30" />}
+                    </View>
+                  );
+                })}
+              </View>
+              <Text style={styles.practiceExplanation}>{q.explanation}</Text>
+            </View>
+          );
+        })}
+        <View style={styles.practiceResultActions}>
+          <TouchableOpacity style={styles.practiceResultBtnPrimary} onPress={restartPractice}>
+            <Icon name="refresh" size={18} color="#fff" />
+            <Text style={styles.practiceResultBtnPrimaryText}>再来一组</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.practiceResultBtnSecondary} onPress={exitPracticeMode}>
+            <Text style={styles.practiceResultBtnSecondaryText}>返回错题本</Text>
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
+    );
+  }
+
+  // 练习模式：答题页
+  if (practiceMode && !practiceFinished) {
+    const currentQ = practiceQuestions[practiceIndex];
+    return (
+      <View style={styles.container}>
+        {/* 顶部进度 */}
+        <View style={styles.practiceQuizHead}>
+          <TouchableOpacity onPress={exitPracticeMode} style={styles.practiceQuizBackBtn}>
+            <Icon name="close" size={22} color="#8E8E93" />
+          </TouchableOpacity>
+          <View style={styles.practiceQuizProgressBar}>
+            <View style={[styles.practiceQuizProgressFill, {
+              width: `${((practiceIndex + (practiceSelected !== null ? 1 : 0)) / practiceQuestions.length) * 100}%`,
+            }]} />
+          </View>
+          <Text style={styles.practiceQuizCounter}>{practiceIndex + 1}/{practiceQuestions.length}</Text>
+        </View>
+        {/* 题目 */}
+        <ScrollView style={styles.practiceQuizBody} contentContainerStyle={styles.practiceQuizBodyInner} refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CAF50']} />
+        }>
+          <Text style={styles.practiceQText}>{currentQ?.question}</Text>
+          <View style={styles.practiceOptionsList}>
+            {currentQ?.options.map((opt, idx) => {
+              const isSelected = practiceSelected === idx;
+              const isCorrectAnswer = currentQ.answer === OPTION_LABELS[idx];
+              let bg = '#F2F2F7';
+              let borderColor = 'transparent';
+              let textStyle = {};
+              if (practiceSelected !== null) {
+                if (isCorrectAnswer) { bg = '#E8F8EE'; borderColor = '#34C759'; textStyle = { color: '#34C759', fontWeight: '700' }; }
+                else if (isSelected) { bg = '#FEE8E8'; borderColor = '#FF3B30'; textStyle = { color: '#FF3B30', fontWeight: '700' }; }
+              }
+              return (
+                <TouchableOpacity
+                  key={idx}
+                  style={[styles.practiceOptBtn, { backgroundColor: bg, borderColor }]}
+                  onPress={() => handlePracticeSelect(idx)}
+                  disabled={practiceSelected !== null}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.practiceOptLabel, { backgroundColor: OPTION_COLORS[idx] + '1A' }]}>
+                    <Text style={[styles.practiceOptLabelText, { color: OPTION_COLORS[idx] }]}>{OPTION_LABELS[idx]}</Text>
+                  </View>
+                  <Text style={[styles.practiceOptText, textStyle]}>{opt}</Text>
+                  {practiceSelected !== null && isCorrectAnswer && (
+                    <Icon name="check-circle" size={20} color="#34C759" />
+                  )}
+                  {practiceSelected !== null && isSelected && !isCorrectAnswer && (
+                    <Icon name="cancel" size={20} color="#FF3B30" />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </ScrollView>
+      </View>
+    );
+  }
+
   if (!wrongAnswers?.length) {
     return (
       <View style={styles.empty}>
@@ -129,12 +365,23 @@ export default function WrongAnswerScreen({ navigation }) {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} refreshControl={
+      <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CAF50']} />
+    }>
       {/* Header with stats */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>错题本</Text>
-          <Text style={styles.headerCount}>共 {wrongAnswers.length} 题</Text>
+        <View style={styles.headerTopRow}>
+          <View>
+            <Text style={styles.headerTitle}>错题本</Text>
+            <Text style={styles.headerCount}>共 {wrongAnswers.length} 题</Text>
+          </View>
+          {/* 练习模式入口 */}
+          {wrongAnswers.length > 0 && (
+            <TouchableOpacity style={styles.practiceModeBtn} onPress={enterPracticeMode}>
+              <Icon name="quiz" size={16} color="#fff" />
+              <Text style={styles.practiceModeBtnText}>练习模式</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <View style={styles.statsRow}>
           {todayReviewCount > 0 && (
@@ -335,4 +582,77 @@ const styles = StyleSheet.create({
   courseBtnText: { fontSize:13, color:'#007AFF', fontWeight:'500' },
   noExplanationHint: { flexDirection:'row', alignItems:'center', justifyContent:'center', marginTop:10, gap:4 },
   noExplanationHintText: { fontSize:12, color:'#8E8E93' },
+
+  // ===== 练习模式按钮 =====
+  headerTopRow: { flexDirection:'row', alignItems:'flex-start', justifyContent:'space-between', marginBottom:10 },
+  practiceModeBtn: {
+    flexDirection:'row', alignItems:'center', backgroundColor:'#4CAF50', borderRadius:20,
+    paddingHorizontal:14, paddingVertical:8, gap:4,
+  },
+  practiceModeBtnText: { color:'#fff', fontSize:13, fontWeight:'700' },
+
+  // ===== 练习模式答题页 =====
+  practiceQuizHead: {
+    flexDirection:'row', alignItems:'center', paddingHorizontal:12, paddingTop:48, paddingBottom:10,
+    backgroundColor:'#fff', gap:10,
+  },
+  practiceQuizBackBtn: { padding:4 },
+  practiceQuizProgressBar: { flex:1, height:4, backgroundColor:'#E5E5EA', borderRadius:2, overflow:'hidden' },
+  practiceQuizProgressFill: { height:'100%', backgroundColor:'#4CAF50', borderRadius:2 },
+  practiceQuizCounter: { fontSize:13, fontWeight:'600', color:'#8E8E93', minWidth:36, textAlign:'right' },
+  practiceQuizBody: { flex:1 },
+  practiceQuizBodyInner: { padding:20, paddingTop:16 },
+  practiceQText: { fontSize:17, fontWeight:'600', color:'#000', lineHeight:26, marginBottom:24 },
+  practiceOptionsList: { gap:10 },
+  practiceOptBtn: {
+    flexDirection:'row', alignItems:'center', padding:14, borderRadius:14,
+    borderWidth:1.5, gap:10,
+  },
+  practiceOptLabel: {
+    width:32, height:32, borderRadius:10, justifyContent:'center', alignItems:'center',
+  },
+  practiceOptLabelText: { fontSize:15, fontWeight:'700' },
+  practiceOptText: { flex:1, fontSize:15, color:'#000', lineHeight:22 },
+
+  // ===== 练习模式结果页 =====
+  practiceResultContent: { padding:20, paddingBottom:40 },
+  practiceResultHeader: { alignItems:'center', marginBottom:24, paddingTop:20 },
+  practiceResultIconWrap: {
+    width:80, height:80, borderRadius:40, justifyContent:'center', alignItems:'center', marginBottom:14,
+  },
+  practiceResultTitle: { fontSize:20, fontWeight:'700', color:'#000', marginBottom:6 },
+  practiceResultScore: { fontSize:15, color:'#8E8E93', marginBottom:12 },
+  practiceResultBarTrack: { width:'80%', height:8, backgroundColor:'#E5E5EA', borderRadius:4, overflow:'hidden' },
+  practiceResultBarFill: { height:'100%', borderRadius:4 },
+  practiceReviewCard: {
+    backgroundColor:'#fff', borderRadius:16, padding:16, marginBottom:12,
+    shadowColor:'#000', shadowOffset:{w:0,h:1}, shadowOpacity:0.03, shadowRadius:4,
+  },
+  practiceReviewQHead: { flexDirection:'row', gap:10, marginBottom:10, alignItems:'flex-start' },
+  practiceReviewIdx: { width:24, height:24, borderRadius:8, justifyContent:'center', alignItems:'center' },
+  practiceReviewIdxText: { fontSize:12, fontWeight:'700', color:'#fff' },
+  practiceReviewQText: { flex:1, fontSize:14, fontWeight:'500', color:'#000', lineHeight:20 },
+  practiceReviewOptions: { marginBottom:8, gap:4 },
+  practiceReviewOpt: {
+    flexDirection:'row', alignItems:'center', padding:8, paddingHorizontal:10,
+    borderRadius:8, gap:8, borderWidth:1,
+  },
+  practiceReviewOptLabel: { fontSize:13, fontWeight:'700', minWidth:20 },
+  practiceReviewOptText: { flex:1, fontSize:13, color:'#000' },
+  practiceExplanation: {
+    fontSize:12, color:'#8E8E93', lineHeight:18, paddingTop:4,
+    borderTopWidth:StyleSheet.hairlineWidth, borderTopColor:'#E5E5EA', marginTop:4,
+  },
+  practiceResultActions: { flexDirection:'row', gap:12, marginTop:8 },
+  practiceResultBtnPrimary: {
+    flex:1, flexDirection:'row', justifyContent:'center', alignItems:'center',
+    backgroundColor:'#4CAF50', borderRadius:14, paddingVertical:14, gap:6,
+  },
+  practiceResultBtnPrimaryText: { color:'#fff', fontSize:15, fontWeight:'700' },
+  practiceResultBtnSecondary: {
+    flex:1, justifyContent:'center', alignItems:'center',
+    backgroundColor:'#fff', borderRadius:14, paddingVertical:14,
+    borderWidth:1, borderColor:'#E5E5EA',
+  },
+  practiceResultBtnSecondaryText: { color:'#8E8E93', fontSize:15, fontWeight:'600' },
 });

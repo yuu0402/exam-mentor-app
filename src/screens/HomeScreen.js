@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert } from 'react-native';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Alert, RefreshControl } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
 import { getCurrentPhaseInfo, getDaysUntilExam } from '../utils/study-plan-generator';
@@ -61,6 +61,8 @@ export default function HomeScreen({ navigation }) {
   const { student, today, timer, startTimer, stopTimer, pauseTimer, resumeTimer, checkInToast, dismissCheckInToast, studySummary, dismissStudySummary, checkIn, diagnosisResult, studyPlan, wrongAnswers, todayReviewCount, entertainment, remainingEntertainmentTime } = useApp();
   const [greeting, setGreeting] = useState('');
   const [elapsed, setElapsed] = useState(0);
+  const [fetchError, setFetchError] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     const h = new Date().getHours();
@@ -75,8 +77,9 @@ export default function HomeScreen({ navigation }) {
   }, []);
 
   // 后端数据拉取
-  useEffect(() => {
-    const fetchBackendData = async () => {
+  const fetchBackendData = async () => {
+    setFetchError(null);
+    try {
       await Promise.allSettled([
         getTaskStats(),
         getDiagnosisHistory(),
@@ -85,8 +88,20 @@ export default function HomeScreen({ navigation }) {
         getGameState(),
         getTodayTasks(),
       ]);
-    };
+    } catch (e) {
+      setFetchError('网络异常，请检查连接后重试');
+    }
+  };
+
+  useEffect(() => {
     fetchBackendData();
+  }, []);
+
+  // 下拉刷新
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchBackendData();
+    setRefreshing(false);
   }, []);
 
   // 显示名：有姓名则 "早上好，小明"，否则 "早上好，同学"；避免空问候+逗号残留
@@ -177,7 +192,9 @@ export default function HomeScreen({ navigation }) {
     };
 
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.centerContent}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.centerContent} refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CAF50']} />
+      }>
         {/* 打卡Toast */}
         {checkInToast && (
           <View style={styles.toastBanner}>
@@ -232,7 +249,9 @@ export default function HomeScreen({ navigation }) {
   // ==================== PHASE: DIAGNOSIS (no test) ====================
   if (phase === 'diagnosis') {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.centerContent}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.centerContent} refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CAF50']} />
+      }>
         {/* 学习摘要Toast */}
         {studySummary && (
           <View style={styles.toastBannerSummary}>
@@ -272,7 +291,9 @@ export default function HomeScreen({ navigation }) {
 
   // ==================== PHASE: READY ====================
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false} refreshControl={
+      <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#4CAF50']} />
+    }>
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.greeting}>{displayGreeting}</Text>
@@ -281,6 +302,27 @@ export default function HomeScreen({ navigation }) {
           <Text style={styles.dateSmall}>{new Date().toLocaleDateString('zh-CN', { month:'long', day:'numeric', weekday:'short' })}</Text>
         </View>
       </View>
+
+      {/* 学习摘要Toast */}
+      {studySummary && (
+        <View style={styles.toastBannerSummary}>
+          <Icon name="school" size={18} color="#fff" />
+          <Text style={styles.toastText}>
+            {studySummary.subject
+              ? `本次学习了${studySummary.subject} ${studySummary.minutes}分钟`
+              : `本次学习了 ${studySummary.minutes}分钟`}
+          </Text>
+        </View>
+      )}
+
+      {/* 网络错误提示 */}
+      {fetchError && (
+        <TouchableOpacity style={styles.errorBanner} onPress={fetchBackendData}>
+          <Icon name="wifi-off" size={16} color="#fff" />
+          <Text style={styles.errorBannerText}>{fetchError}</Text>
+          <Text style={styles.errorBannerRetry}>点击重试</Text>
+        </TouchableOpacity>
+      )}
 
       {/* 学习摘要Toast */}
       {studySummary && (
@@ -476,6 +518,11 @@ const styles = StyleSheet.create({
   toastBanner: { flexDirection:'row', alignItems:'center', backgroundColor:'#34C759', paddingVertical:12, paddingHorizontal:20, borderRadius:12, marginBottom:20, gap:8, shadowColor:'#000', shadowOffset:{w:0,h:2}, shadowOpacity:0.1, shadowRadius:6 },
   toastBannerSummary: { flexDirection:'row', alignItems:'center', backgroundColor:'#4A90D9', paddingVertical:12, paddingHorizontal:20, borderRadius:12, marginBottom:20, gap:8, shadowColor:'#000', shadowOffset:{w:0,h:2}, shadowOpacity:0.1, shadowRadius:6 },
   toastText: { color:'#fff', fontSize:15, fontWeight:'600' },
+
+  // 网络错误提示
+  errorBanner: { flexDirection:'row', alignItems:'center', backgroundColor:'#FF3B30', paddingVertical:10, paddingHorizontal:16, marginHorizontal:16, marginTop:12, borderRadius:10, gap:6 },
+  errorBannerText: { color:'#fff', fontSize:13, fontWeight:'500', flex:1 },
+  errorBannerRetry: { color:'rgba(255,255,255,0.8)', fontSize:12, fontWeight:'600' },
 
   // Phase: Ready
   header: { paddingHorizontal:20, paddingTop:50, paddingBottom:12 },
