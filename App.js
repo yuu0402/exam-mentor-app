@@ -18,6 +18,7 @@ import StudyPlanScreen from './src/screens/StudyPlanScreen';
 import WrongAnswerScreen from './src/screens/WrongAnswerScreen';
 import QuickPracticeScreen from './src/screens/QuickPracticeScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
+import LoginScreen from './src/screens/LoginScreen';
 import LearningSessionScreen from './src/screens/LearningSessionScreen';
 import StatsScreen from './src/screens/StatsScreen';
 
@@ -118,7 +119,7 @@ function AppTabs() {
 
 // 根组件：根据引导状态决定显示 Onboarding 还是主界面
 function AppRoot() {
-  const { isLoading, isOnboarded, student } = useApp();
+  const { isLoading, isLoggedIn, isOnboarded, student } = useApp();
   const [navState, setNavState] = useState(null);
   const [navReady, setNavReady] = useState(false);
   const navigationRef = useRef(null);
@@ -159,7 +160,17 @@ function AppRoot() {
     );
   }
 
-  // 未完成引导（无学生信息）- 显示引导流程
+  // 未登录 - 显示登录页面
+  if (!isLoggedIn) {
+    return (
+      <>
+        <StatusBar style="dark" />
+        <LoginScreen />
+      </>
+    );
+  }
+
+  // 已登录但未完成引导（无学生信息）- 显示引导流程
   if (!isOnboarded || !student) {
     return (
       <>

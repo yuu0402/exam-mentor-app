@@ -2,7 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, useMemo, useRe
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS, QUARK_CONFIG } from '../config';
 import { scheduleReview, getTodayReviews, markReviewed, getReviewStats } from '../utils/study-plan-generator';
-import { checkIn as backendCheckIn, getTodayTasks, completeTask as backendCompleteTask, startTask as backendStartTask, submitDiagnosis as backendSubmitDiagnosis, getWrongQuestions as backendGetWrongQuestions, logout as backendLogout } from '../api/backend';
+import { checkIn as backendCheckIn, getTodayTasks, completeTask as backendCompleteTask, startTask as backendStartTask, submitDiagnosis as backendSubmitDiagnosis, getWrongQuestions as backendGetWrongQuestions, logout as backendLogout, login as backendLogin, register as backendRegister, getMe as backendGetMe, sendCode as backendSendCode } from '../api/backend';
 import { checkNetworkStatus } from '../utils/network';
 
 // 初始状态
@@ -93,6 +93,8 @@ const initialState = {
 const ActionTypes = {
   SET_LOADING: 'SET_LOADING',
   SET_ERROR: 'SET_ERROR',
+  SET_LOGGED_IN: 'SET_LOGGED_IN',
+  SET_TOKEN: 'SET_TOKEN',
   SET_STUDENT: 'SET_STUDENT',
   SET_STUDY_PLAN: 'SET_STUDY_PLAN',
   SET_DIAGNOSIS_RESULT: 'SET_DIAGNOSIS_RESULT',
@@ -133,6 +135,12 @@ function appReducer(state, action) {
 
     case ActionTypes.SET_ERROR:
       return { ...state, error: action.payload, isLoading: false };
+
+    case ActionTypes.SET_LOGGED_IN:
+      return { ...state, isLoggedIn: action.payload };
+
+    case ActionTypes.SET_TOKEN:
+      return { ...state, token: action.payload };
 
     case ActionTypes.SET_STUDENT:
       return { ...state, student: action.payload };
@@ -475,6 +483,9 @@ export function AppProvider({ children }) {
   const loadInitialData = async () => {
     try {
       dispatch({ type: ActionTypes.SET_LOADING, payload: true });
+
+      // 先检查认证状态
+      await checkAuth();
 
       // 并行加载所有数据
       const [
@@ -1070,13 +1081,62 @@ export function AppProvider({ children }) {
     }
     // 清除本地存储的token
     try {
-      await AsyncStorage.removeItem('@backend_token');
-      await AsyncStorage.removeItem('@backend_user');
+      await AsyncStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
+      await AsyncStorage.removeItem(STORAGE_KEYS.AUTH_USER);
     } catch (e) {
       console.warn('清除本地存储失败:', e);
     }
-    // 重置状态
+    // 重置登录状态
+    dispatch({ type: ActionTypes.SET_LOGGED_IN, payload: false });
+    dispatch({ type: ActionTypes.SET_TOKEN, payload: null });
     dispatch({ type: ActionTypes.SET_STUDENT, payload: null });
+  };
+
+  // 检查认证状态（启动时调用）
+  const checkAuth = async () => {
+    try {
+      const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+      if (!token) {
+        dispatch({ type: ActionTypes.SET_LOGGED_IN, payload: false });
+        return false;
+      }
+      // 用 /api/auth/me 验证 token 有效性
+      const user = await backendGetMe();
+      dispatch({ type: ActionTypes.SET_LOGGED_IN, payload: true });
+      dispatch({ type: ActionTypes.SET_TOKEN, payload: token });
+      dispatch({ type: ActionTypes.SET_STUDENT, payload: user });
+      return true;
+    } catch (e) {
+      // token 无效或过期，清除
+      await AsyncStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN).catch(() => {});
+      await AsyncStorage.removeItem(STORAGE_KEYS.AUTH_USER).catch(() => {});
+      dispatch({ type: ActionTypes.SET_LOGGED_IN, payload: false });
+      dispatch({ type: ActionTypes.SET_TOKEN, payload: null });
+      return false;
+    }
+  };
+
+  // 登录（手机号 + 验证码）
+  const login = async (phone, code) => {
+    // 先尝试登录，失败则尝试注册
+    try {
+      const result = await backendLogin({ phone, code });
+      await AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, result.access_token);
+      await AsyncStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(result.user));
+      dispatch({ type: ActionTypes.SET_LOGGED_IN, payload: true });
+      dispatch({ type: ActionTypes.SET_TOKEN, payload: result.access_token });
+      dispatch({ type: ActionTypes.SET_STUDENT, payload: result.user });
+      return result;
+    } catch (loginErr) {
+      // 登录失败，尝试注册（未注册用户会走到这里）
+      const regResult = await backendRegister({ phone, code });
+      await AsyncStorage.setItem(STORAGE_KEYS.AUTH_TOKEN, regResult.access_token);
+      await AsyncStorage.setItem(STORAGE_KEYS.AUTH_USER, JSON.stringify(regResult.user));
+      dispatch({ type: ActionTypes.SET_LOGGED_IN, payload: true });
+      dispatch({ type: ActionTypes.SET_TOKEN, payload: regResult.access_token });
+      dispatch({ type: ActionTypes.SET_STUDENT, payload: regResult.user });
+      return regResult;
+    }
   };
 
   // Context value
@@ -1115,6 +1175,8 @@ export function AppProvider({ children }) {
     loadWrongAnswers,
     wrongAnswers: state.wrongAnswers,
     logout,
+    login,
+    checkAuth,
 
     // 刷新数据
     refreshData: loadInitialData,

@@ -8,10 +8,32 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ======================== 配置 ========================
-// 开发/测试模式：使用 WSL 后端 IP
-const API_BASE = 'http://172.29.58.198:8000';
-const TOKEN_KEY = '@backend_token';
-const USER_KEY = '@backend_user';
+// API 基地址：从环境变量读取，支持本地开发/生产环境切换
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://172.29.58.198:8000';
+const TOKEN_KEY = '@auth_token';
+const USER_KEY = '@auth_user';
+
+// ======================== 超时工具 ========================
+/**
+ * 带超时的 fetch 请求
+ * @param {string} url - 请求地址
+ * @param {object} options - fetch 配置
+ * @param {number} timeoutMs - 超时毫秒数，默认 15000ms
+ */
+async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    return res;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 // ======================== 工具函数 ========================
 async function request(method, path, body = null, headers = {}) {
@@ -27,7 +49,16 @@ async function request(method, path, body = null, headers = {}) {
     config.body = JSON.stringify(body);
   }
 
-  const res = await fetch(`${API_BASE}${path}`, config);
+  let res;
+  try {
+    res = await fetchWithTimeout(`${API_BASE}${path}`, config, 15000);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new Error('网络请求超时，请检查网络连接后重试');
+    }
+    throw new Error(`网络连接失败：${err.message}`);
+  }
+
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
@@ -36,20 +67,27 @@ async function request(method, path, body = null, headers = {}) {
   return data;
 }
 
-// ======================== 认证模块 ========================
+// ======================== 认证模块（手机号 + 验证码） ========================
 
 /**
- * 用户注册
- * @param {{ username: string, password: string, display_name?: string, role?: string }} userData
+ * 发送验证码
+ * @param {string} phone - 手机号
+ * @returns {{ message: string }}
+ */
+export async function sendCode(phone) {
+  return request('POST', '/api/auth/send-code', { phone });
+}
+
+/**
+ * 用户注册（手机号 + 验证码）
+ * @param {{ phone: string, code: string, nickname?: string }} userData
  * @returns {{ access_token: string, user: object }}
  */
 export async function register(userData) {
   const result = await request('POST', '/api/auth/register', {
-    username: userData.username,
-    password: userData.password,
-    display_name: userData.displayName || userData.username,
-    role: userData.role || 'student',
-    parent_id: userData.parentId || null,
+    phone: userData.phone,
+    code: userData.code,
+    nickname: userData.nickname || null,
   });
   await AsyncStorage.setItem(TOKEN_KEY, result.access_token);
   await AsyncStorage.setItem(USER_KEY, JSON.stringify(result.user));
@@ -57,14 +95,14 @@ export async function register(userData) {
 }
 
 /**
- * 用户登录
- * @param {{ username: string, password: string }} credentials
+ * 用户登录（手机号 + 验证码）
+ * @param {{ phone: string, code: string }} credentials
  * @returns {{ access_token: string, user: object }}
  */
 export async function login(credentials) {
   const result = await request('POST', '/api/auth/login', {
-    username: credentials.username,
-    password: credentials.password,
+    phone: credentials.phone,
+    code: credentials.code,
   });
   await AsyncStorage.setItem(TOKEN_KEY, result.access_token);
   await AsyncStorage.setItem(USER_KEY, JSON.stringify(result.user));
@@ -95,6 +133,7 @@ export async function updateProfile(profileData) {
  * 登出
  */
 export async function logout() {
+  await request('POST', '/api/auth/logout').catch(() => {});
   await AsyncStorage.removeItem(TOKEN_KEY);
   await AsyncStorage.removeItem(USER_KEY);
 }
@@ -473,7 +512,7 @@ export async function healthCheck() {
 // ======================== 默认导出 ========================
 export default {
   // 认证
-  register, login, logout, getMe, updateProfile, isLoggedIn, getCachedUser,
+  sendCode, register, login, logout, getMe, updateProfile, isLoggedIn, getCachedUser,
   // 诊断
   startDiagnosis, getDiagnosisQuestions, submitDiagnosis, getDiagnosisResult,
   getLatestDiagnosis, getDiagnosisHistory,

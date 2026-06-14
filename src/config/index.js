@@ -495,6 +495,10 @@ export const STORAGE_KEYS = {
   AI_SETTINGS: '@ai_settings',
   ONBOARDING_COMPLETE: '@onboarding_complete',
   NAV_STATE: '@nav_state',
+
+  // 认证
+  AUTH_TOKEN: '@auth_token',
+  AUTH_USER: '@auth_user',
 };
 
 // ========== 导出所有配置 ==========
