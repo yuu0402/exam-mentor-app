@@ -30,3 +30,28 @@ android/.gradle/
 
 # Eas
 .credentials.json
+
+# IPA / Build artifacts (never commit binaries)
+ipa/
+build/
+*.ipa
+*.app
+*.xcarchive
+
+# Temp scripts (Windows batch / helper scripts)
+*.bat
+clean-project.js
+clean.js
+go.bat
+hello.bat
+install-vpn.bat
+install-with-vpn.js
+run.bat
+start-no-proxy.bat
+start-simple.bat
+start-tunnel.bat
+start.bat
+start.js
+test-basic.bat
+test.bat
+one-key-*.bat

@@ -21,6 +21,9 @@ import OnboardingScreen from './src/screens/OnboardingScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import LearningSessionScreen from './src/screens/LearningSessionScreen';
 import StatsScreen from './src/screens/StatsScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import ParentBindingScreen from './src/screens/ParentBindingScreen';
 
 // ── Deep Linking 配置 ──────────────────────────────────────────
 const linking = {
@@ -45,6 +48,13 @@ const linking = {
       AITab: {
         screens: {
           AIChat: 'ai-chat',
+        },
+      },
+      MeTab: {
+        screens: {
+          Profile: 'profile',
+          Settings: 'settings',
+          ParentBinding: 'parent-binding',
         },
       },
     },
@@ -97,6 +107,16 @@ function MainStack() {
   );
 }
 
+function MeStack() {
+  return (
+    <Stack.Navigator screenOptions={headerConfig}>
+      <Stack.Screen name="ProfileMain" component={ProfileScreen} options={{ title: '个人中心' }} />
+      <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: '设置' }} />
+      <Stack.Screen name="ParentBinding" component={ParentBindingScreen} options={{ title: '家长绑定' }} />
+    </Stack.Navigator>
+  );
+}
+
 function AppTabs() {
   return (
     <Tab.Navigator screenOptions={({ route }) => ({
@@ -106,13 +126,14 @@ function AppTabs() {
       tabBarStyle: { backgroundColor: '#FFFFFF', borderTopWidth: 0, elevation: 8, height: 56, paddingBottom: 6, paddingTop: 4 },
       tabBarLabelStyle: { fontSize: 11, fontWeight: '600' },
       tabBarIcon: ({ color, size }) => {
-        const icons = { TodayTab: 'today', CourseTab: 'play-circle', AITab: 'psychology' };
+        const icons = { TodayTab: 'today', CourseTab: 'play-circle', AITab: 'psychology', MeTab: 'person' };
         return <Icon name={icons[route.name] || 'circle'} size={size} color={color} />;
       },
     })}>
       <Tab.Screen name="TodayTab" component={MainStack} options={{ title: '今日' }} />
       <Tab.Screen name="CourseTab" component={CourseStack} options={{ title: '课程' }} />
       <Tab.Screen name="AITab" component={AIStack} options={{ title: 'AI' }} />
+      <Tab.Screen name="MeTab" component={MeStack} options={{ title: '我的' }} />
     </Tab.Navigator>
   );
 }

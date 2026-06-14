@@ -1,0 +1,76 @@
+name: Deploy Web to Vercel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'web/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install Vercel CLI
+        run: npm install -g vercel
+
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          cd web
+          vercel deploy \
+            --prod \
+            --token "$VERCEL_TOKEN" \
+            --yes \
+            --scope "${{ secrets.VERCEL_SCOPE || '' }}" \
+            --name zhongkao-mentor-web
+
+# --------------------------------------------------------------------------
+# Alternative: GitHub Pages deployment
+#
+# Replace the entire "deploy" job above with the two jobs below
+# if you prefer to deploy to GitHub Pages instead of Vercel.
+#
+# Prerequisites for GitHub Pages:
+#   1. Go to repo Settings > Pages > Source: "GitHub Actions"
+#
+# --------------------------------------------------------------------------
+#
+# jobs:
+#   build:
+#     runs-on: ubuntu-latest
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: actions/configure-pages@v4
+#       - uses: actions/upload-pages-artifact@v3
+#         with:
+#           path: web
+#
+#   deploy:
+#     needs: build
+#     runs-on: ubuntu-latest
+#     permissions:
+#       pages: write
+#       id-token: write
+#     environment:
+#       name: github-pages
+#       url: ${{ steps.deployment.outputs.page_url }}
+#     steps:
+#       - uses: actions/deploy-pages@v4
+#
+# --------------------------------------------------------------------------
+# Required GitHub Secrets for Vercel:
+#   VERCEL_TOKEN  — Vercel personal access token (create at vercel.com/account/tokens)
+# Optional:
+#   VERCEL_SCOPE  — Vercel team slug (only needed for team-scoped projects)
+# --------------------------------------------------------------------------

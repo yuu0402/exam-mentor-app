@@ -3,9 +3,9 @@
     "name": "私人导师",
     "slug": "zhongkao-mentor",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -22,7 +22,8 @@
         "NSCameraUsageDescription": "用于扫描二维码登录",
         "NSMicrophoneUsageDescription": "用于语音答疑",
         "NSPhotoLibraryUsageDescription": "用于保存学习资料",
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIBackgroundModes": ["remote-notification"]
       }
     },
     "android": {

@@ -1,0 +1,50 @@
+name: Build IPA
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
+
+      - name: Build IPA with EAS (local)
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          eas build --platform ios --local --profile preview --non-interactive
+
+      - name: Find and upload IPA
+        id: find_ipa
+        run: |
+          echo "Looking for IPA files..."
+          find . -name "*.ipa" -type f 2>/dev/null
+          IPA=$(find . -name "*.ipa" -type f 2>/dev/null | head -1)
+          if [ -z "$IPA" ]; then
+            echo "ERROR: No IPA file found"
+            exit 1
+          fi
+          echo "Found IPA: $IPA"
+          ls -lh "$IPA"
+          echo "ipa_path=$IPA" >> $GITHUB_OUTPUT
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zhongkao-mentor-ipa
+          path: ${{ steps.find_ipa.outputs.ipa_path }}
+          retention-days: 30

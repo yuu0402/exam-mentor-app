@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>中考导师 - 家长看板</title>
+<style>
+/* ====== Reset & Base ====== */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #F2F2F7;
+  --card-bg: #FFFFFF;
+  --primary: #007AFF;
+  --primary-light: #E8F2FF;
+  --text: #1C1C1E;
+  --text-secondary: #8E8E93;
+  --text-tertiary: #AEAEB2;
+  --separator: #E5E5EA;
+  --success: #34C759;
+  --warning: #FF9500;
+  --danger: #FF3B30;
+  --purple: #AF52DE;
+  --teal: #5AC8FA;
+  --pink: #FF2D55;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.06);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+}
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  display: flex; justify-content: center; align-items: center;
+}
+
+/* ====== App Shell ====== */
+#app {
+  width: 100%; max-width: 480px; height: 100vh; height: 100dvh;
+  display: flex; flex-direction: column; position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+@media (min-width: 481px) {
+  #app { height: 90vh; height: 90dvh; border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); }
+  body { padding: 2vh 0; }
+}
+
+/* ====== Login ====== */
+.login-screen {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 32px; height: 100%; gap: 28px;
+}
+.login-avatar {
+  width: 80px; height: 80px; border-radius: 24px;
+  background: linear-gradient(135deg, var(--primary), #5856D6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 36px; color: #fff; box-shadow: 0 8px 24px rgba(0,122,255,0.3);
+}
+.login-title { font-size: 22px; font-weight: 700; letter-spacing: 0.3px; }
+.login-subtitle { font-size: 14px; color: var(--text-secondary); margin-top: -16px; }
+.login-input-wrap {
+  width: 100%; max-width: 280px;
+}
+.login-input {
+  width: 100%; padding: 14px 18px; font-size: 16px;
+  border: 1.5px solid var(--separator); border-radius: var(--radius);
+  background: var(--card-bg); outline: none; transition: border-color 0.2s;
+  font-family: var(--font); text-align: center; letter-spacing: 6px;
+  -webkit-text-security: disc;
+}
+.login-input:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(0,122,255,0.1); }
+.login-btn {
+  width: 100%; max-width: 280px; padding: 14px;
+  background: var(--primary); color: #fff; border: none; border-radius: var(--radius);
+  font-size: 17px; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+  font-family: var(--font); letter-spacing: 0.5px;
+}
+.login-btn:active { opacity: 0.75; }
+.login-error { color: var(--danger); font-size: 13px; min-height: 20px; }
+
+/* ====== Main Layout ====== */
+.main-screen { display: none; flex-direction: column; height: 100%; }
+.main-screen.active { display: flex; }
+.login-screen.hidden { display: none; }
+
+/* Header */
+.header {
+  background: var(--card-bg); padding: 12px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 0.5px solid var(--separator);
+  flex-shrink: 0;
+}
+.header-title { font-size: 18px; font-weight: 700; }
+.header-logout {
+  font-size: 14px; color: var(--danger); background: none; border: none;
+  cursor: pointer; font-family: var(--font); padding: 4px 8px;
+}
+
+/* Content area */
+.content { flex: 1; overflow-y: auto; padding: 16px; -webkit-overflow-scrolling: touch; }
+.content::-webkit-scrollbar { display: none; }
+
+/* ====== Tab Bar ====== */
+.tab-bar {
+  display: flex; background: var(--card-bg); border-top: 0.5px solid var(--separator);
+  flex-shrink: 0; padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.tab-item {
+  flex: 1; padding: 10px 4px 6px; text-align: center; cursor: pointer;
+  font-size: 11px; color: var(--text-tertiary); transition: color 0.2s;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  font-family: var(--font); background: none; border: none;
+}
+.tab-item.active { color: var(--primary); }
+.tab-icon { font-size: 22px; }
+
+/* ====== Pages ====== */
+.page { display: none; flex-direction: column; gap: 14px; }
+.page.active { display: flex; }
+
+/* ====== Cards ====== */
+.card {
+  background: var(--card-bg); border-radius: var(--radius);
+  padding: 18px; box-shadow: var(--shadow);
+}
+.card-header {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 14px;
+}
+.card-title { font-size: 15px; font-weight: 600; color: var(--text); }
+.card-badge {
+  font-size: 12px; color: var(--text-secondary); background: var(--bg);
+  padding: 4px 10px; border-radius: 20px;
+}
+
+/* ====== Dashboard - Big Number ====== */
+.big-number-wrap { text-align: center; padding: 6px 0; }
+.big-number {
+  font-size: 56px; font-weight: 800; color: var(--primary);
+  line-height: 1; letter-spacing: -2px;
+}
+.big-number-unit { font-size: 16px; font-weight: 600; color: var(--text-secondary); }
+.big-number-sub { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+
+/* ====== Dashboard - Week Chart ====== */
+.week-chart {
+  display: flex; align-items: flex-end; justify-content: space-around;
+  height: 140px; padding: 0 4px;
+}
+.week-bar-col {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px;
+  height: 100%; justify-content: flex-end;
+}
+.week-bar {
+  width: 100%; max-width: 32px; border-radius: 6px 6px 2px 2px;
+  background: var(--primary-light); transition: height 0.6s ease;
+  position: relative; min-height: 4px;
+}
+.week-bar.today { background: var(--primary); }
+.week-bar-label { font-size: 11px; color: var(--text-secondary); }
+.week-bar-value { font-size: 10px; color: var(--text-tertiary); }
+
+/* ====== Dashboard - Subject Rings ====== */
+.rings-row { display: flex; justify-content: space-around; gap: 8px; flex-wrap: wrap; }
+.ring-item { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.ring-svg { width: 70px; height: 70px; transform: rotate(-90deg); }
+.ring-bg { fill: none; stroke: #F0F0F5; stroke-width: 6; }
+.ring-fg { fill: none; stroke-width: 6; stroke-linecap: round; transition: stroke-dashoffset 0.8s ease; }
+.ring-label { font-size: 13px; font-weight: 600; }
+.ring-pct { font-size: 12px; color: var(--text-secondary); }
+
+/* ====== Score Table ====== */
+.score-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.score-table th, .score-table td { padding: 10px 8px; text-align: center; border-bottom: 0.5px solid var(--separator); }
+.score-table th { background: var(--bg); font-weight: 600; color: var(--text-secondary); font-size: 12px; }
+.score-table th:first-child, .score-table td:first-child { text-align: left; padding-left: 4px; }
+.score-up { color: var(--success); font-weight: 600; }
+.score-down { color: var(--danger); font-weight: 600; }
+
+/* ====== Weak Points ====== */
+.weak-list { display: flex; flex-direction: column; gap: 10px; }
+.weak-item { display: flex; align-items: center; gap: 12px; }
+.weak-rank {
+  width: 26px; height: 26px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; font-size: 12px; font-weight: 700;
+  color: #fff; flex-shrink: 0;
+}
+.weak-rank.r1 { background: var(--danger); }
+.weak-rank.r2 { background: var(--warning); }
+.weak-rank.r3 { background: var(--warning); }
+.weak-rank.r4 { background: var(--teal); }
+.weak-rank.r5 { background: var(--teal); }
+.weak-info { flex: 1; min-width: 0; }
+.weak-name { font-size: 14px; font-weight: 500; }
+.weak-subject { font-size: 11px; color: var(--text-secondary); }
+.weak-bar-wrap { width: 60px; height: 6px; background: #F0F0F5; border-radius: 3px; overflow: hidden; flex-shrink: 0; }
+.weak-bar-fill { height: 100%; border-radius: 3px; background: var(--primary); }
+
+/* ====== AI Report ====== */
+.report-section { margin-bottom: 18px; }
+.report-section:last-child { margin-bottom: 0; }
+.report-section-title {
+  font-size: 14px; font-weight: 700; margin-bottom: 8px;
+  display: flex; align-items: center; gap: 8px;
+}
+.report-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.report-dot.blue { background: var(--primary); }
+.report-dot.green { background: var(--success); }
+.report-dot.orange { background: var(--warning); }
+.report-text { font-size: 14px; line-height: 1.7; color: var(--text); }
+.report-highlight {
+  display: inline-block; background: #FFF3CD; padding: 1px 6px; border-radius: 4px;
+  font-weight: 600;
+}
+
+/* ====== Skeleton / Empty ====== */
+.skeleton { background: linear-gradient(90deg, #f0f0f5 25%, #e5e5ea 50%, #f0f0f5 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.empty-state { text-align: center; padding: 40px 20px; color: var(--text-secondary); }
+
+/* ====== Scroll Table Wrap ====== */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; padding: 0 4px; }
+
+/* ====== Animations ====== */
+@keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.fade-in { animation: fadeInUp 0.4s ease both; }
+.fade-in-d1 { animation-delay: 0.05s; }
+.fade-in-d2 { animation-delay: 0.1s; }
+.fade-in-d3 { animation-delay: 0.15s; }
+.fade-in-d4 { animation-delay: 0.2s; }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ========== LOGIN SCREEN ========== -->
+  <div class="login-screen" id="loginScreen">
+    <div class="login-avatar">👨‍👩‍👧</div>
+    <div class="login-title">家长看板</div>
+    <div class="login-subtitle">请输入密码以查看学习数据</div>
+    <div class="login-input-wrap">
+      <input type="password" class="login-input" id="loginPwd" placeholder="输入密码" maxlength="20" autocomplete="off">
+    </div>
+    <button class="login-btn" id="loginBtn">解锁看板</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+
+  <!-- ========== MAIN SCREEN ========== -->
+  <div class="main-screen" id="mainScreen">
+
+    <!-- Header -->
+    <div class="header">
+      <span class="header-title">📊 家长看板</span>
+      <button class="header-logout" id="logoutBtn">退出</button>
+    </div>
+
+    <!-- Content Area -->
+    <div class="content" id="contentArea"></div>
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <button class="tab-item active" data-tab="dashboard">
+        <span class="tab-icon">📈</span>仪表盘
+      </button>
+      <button class="tab-item" data-tab="scores">
+        <span class="tab-icon">📋</span>成绩趋势
+      </button>
+      <button class="tab-item" data-tab="report">
+        <span class="tab-icon">🤖</span>AI报告
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===================== DATA LAYER =====================
+const STORAGE_KEY = 'zhongkao_parent_data';
+const PASSWORD = '123456';
+const AUTH_KEY = 'zhongkao_parent_auth';
+
+// ---- Mock data seed ----
+function getDefaultData() {
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  // Generate this week's dates (Mon–Sun)
+  const dayOfWeek = now.getDay(); // 0=Sun
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const weekDays = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + mondayOffset + i);
+    weekDays.push(d.toISOString().split('T')[0]);
+  }
+
+  return {
+    studentName: '小明',
+    grade: '初三',
+    // Daily study minutes, keyed by date string
+    studyMinutes: {
+      [weekDays[0]]: 95,
+      [weekDays[1]]: 110,
+      [weekDays[2]]: 85,
+      [weekDays[3]]: 130,
+      [weekDays[4]]: 75,
+      [weekDays[5]]: 140,
+      [weekDays[6]]: 105,
+    },
+    todayStudyMinutes: 105,
+    // Subject accuracy 0–100
+    subjectAccuracy: {
+      '语文': 72,
+      '数学': 85,
+      '英语': 78,
+      '物理': 68,
+      '化学': 81,
+    },
+    // Exam score history
+    exams: [
+      {
+        label: '一模',
+        date: '2026-03-15',
+        scores: { '语文': 108, '数学': 112, '英语': 105, '物理': 88, '化学': 72 },
+      },
+      {
+        label: '期中',
+        date: '2026-04-20',
+        scores: { '语文': 110, '数学': 115, '英语': 108, '物理': 85, '化学': 75 },
+      },
+      {
+        label: '二模',
+        date: '2026-05-25',
+        scores: { '语文': 112, '数学': 118, '英语': 110, '物理': 90, '化学': 78 },
+      },
+      {
+        label: '最近',
+        date: '2026-06-10',
+        scores: { '语文': 114, '数学': 120, '英语': 109, '物理': 92, '化学': 80 },
+      },
+    ],
+    // Weak knowledge points
+    weakPoints: [
+      { name: '二次函数综合应用', subject: '数学', errorRate: 68 },
+      { name: '文言文阅读理解', subject: '语文', errorRate: 62 },
+      { name: '电路动态分析', subject: '物理', errorRate: 58 },
+      { name: '化学方程式配平', subject: '化学', errorRate: 52 },
+      { name: '英语完形填空', subject: '英语', errorRate: 48 },
+    ],
+    // AI Report
+    aiReport: {
+      summary: '本周小明同学保持了良好的学习节奏，日均学习时长约 <b>106分钟</b>。数学和化学表现较为突出，正确率分别达到 <b>85%</b> 和 <b>81%</b>。语文阅读理解与物理电路分析仍是薄弱环节，需要加强针对性练习。',
+      suggestions: [
+        '数学方面：二次函数综合题是中考高频考点，建议每天保持1道压轴题训练，重点掌握数形结合思想。',
+        '语文方面：文言文阅读需要积累常见实词和虚词用法，可每日精读一篇短小古文并完成配套练习。',
+        '物理方面：电路分析建议从基础串并联入手，逐步过渡到动态电路和含容电路，配合实验视频加深理解。',
+        '整体节奏：距离中考还有半个月，建议保持现有学习强度，避免过度疲劳，注意劳逸结合。',
+      ],
+      nextFocus: [
+        { area: '数学压轴题训练', priority: 'high', detail: '重点攻克二次函数与几何综合' },
+        { area: '文言文专项突破', priority: 'high', detail: '每天1篇古文 + 实词积累' },
+        { area: '物理电路分析', priority: 'medium', detail: '从基础到动态电路循序渐进' },
+        { area: '化学方程式与计算', priority: 'medium', detail: '常见反应方程式熟记 + 计算题规范步骤' },
+        { area: '英语阅读限时训练', priority: 'low', detail: '每周2套完形+阅读限时练习' },
+      ],
+    },
+    _seededAt: todayStr,
+  };
+}
+
+function loadData() {
+  let raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    try {
+      let data = JSON.parse(raw);
+      // If it's a new day, refresh today's study minutes and AI report slightly
+      const today = new Date().toISOString().split('T')[0];
+      if (data._seededAt !== today) {
+        // Slightly vary data for demo freshness
+        data.todayStudyMinutes = Math.floor(90 + Math.random() * 60);
+        const weekDays = getWeekDays();
+        weekDays.forEach(d => {
+          if (!data.studyMinutes[d]) data.studyMinutes[d] = Math.floor(60 + Math.random() * 90);
+        });
+        data._seededAt = today;
+        saveData(data);
+      }
+      return data;
+    } catch (e) { /* fall through */ }
+  }
+  let d = getDefaultData();
+  saveData(d);
+  return d;
+}
+
+function saveData(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function getWeekDays() {
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() + mondayOffset + i);
+    days.push(d.toISOString().split('T')[0]);
+  }
+  return days;
+}
+
+// ===================== AUTH =====================
+function isAuthed() {
+  return localStorage.getItem(AUTH_KEY) === '1';
+}
+function setAuth(v) {
+  if (v) localStorage.setItem(AUTH_KEY, '1');
+  else localStorage.removeItem(AUTH_KEY);
+}
+
+// ===================== RENDER ENGINE =====================
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+const app = {
+  data: null,
+  currentTab: 'dashboard',
+
+  init() {
+    this.data = loadData();
+    this.bindEvents();
+    if (isAuthed()) {
+      this.showMain();
+    }
+    this.renderTab(this.currentTab);
+    // Force keyring animations on render
+    setTimeout(() => this.animateRings(), 300);
+  },
+
+  bindEvents() {
+    $('#loginBtn').addEventListener('click', () => this.handleLogin());
+    $('#loginPwd').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') this.handleLogin();
+    });
+    $('#logoutBtn').addEventListener('click', () => this.handleLogout());
+    $$('.tab-item').forEach(el => {
+      el.addEventListener('click', () => {
+        const tab = el.dataset.tab;
+        this.switchTab(tab);
+      });
+    });
+    // Swipe support for tab switching on content area
+    let touchStartX = 0;
+    $('#contentArea').addEventListener('touchstart', (e) => {
+      touchStartX = e.touches[0].clientX;
+    }, { passive: true });
+    $('#contentArea').addEventListener('touchend', (e) => {
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      if (Math.abs(dx) > 80) {
+        const tabs = ['dashboard', 'scores', 'report'];
+        const idx = tabs.indexOf(this.currentTab);
+        if (dx < 0 && idx < tabs.length - 1) this.switchTab(tabs[idx + 1]);
+        if (dx > 0 && idx > 0) this.switchTab(tabs[idx - 1]);
+      }
+    });
+  },
+
+  handleLogin() {
+    const pwd = $('#loginPwd').value.trim();
+    if (pwd === PASSWORD) {
+      setAuth(true);
+      $('#loginError').textContent = '';
+      this.showMain();
+    } else {
+      $('#loginError').textContent = '密码错误，请重试';
+      $('#loginPwd').value = '';
+      $('#loginPwd').focus();
+    }
+  },
+
+  handleLogout() {
+    setAuth(false);
+    $('#mainScreen').classList.remove('active');
+    $('#loginScreen').classList.remove('hidden');
+    $('#loginPwd').value = '';
+    $('#loginError').textContent = '';
+  },
+
+  showMain() {
+    $('#loginScreen').classList.add('hidden');
+    $('#mainScreen').classList.add('active');
+    this.renderTab(this.currentTab);
+    setTimeout(() => this.animateRings(), 400);
+  },
+
+  switchTab(tab) {
+    this.currentTab = tab;
+    $$('.tab-item').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+    this.renderTab(tab);
+    $('#contentArea').scrollTop = 0;
+    if (tab === 'dashboard') setTimeout(() => this.animateRings(), 300);
+  },
+
+  renderTab(tab) {
+    const area = $('#contentArea');
+    switch (tab) {
+      case 'dashboard': area.innerHTML = this.buildDashboard(); break;
+      case 'scores': area.innerHTML = this.buildScores(); break;
+      case 'report': area.innerHTML = this.buildReport(); break;
+    }
+  },
+
+  // ==================== DASHBOARD ====================
+  buildDashboard() {
+    const d = this.data;
+    const today = new Date().toISOString().split('T')[0];
+    const weekDays = getWeekDays();
+    const dayLabels = ['一', '二', '三', '四', '五', '六', '日'];
+    const weekData = weekDays.map(dd => d.studyMinutes[dd] || 0);
+    const weekMax = Math.max(...weekData, 1);
+    const todayIdx = weekDays.indexOf(today);
+
+    const weekBars = weekData.map((min, i) => {
+      const h = Math.max(4, (min / weekMax) * 120);
+      const isToday = i === todayIdx;
+      return `
+        <div class="week-bar-col">
+          <span class="week-bar-value">${min}m</span>
+          <div class="week-bar${isToday ? ' today' : ''}" style="height:${h}px;"></div>
+          <span class="week-bar-label">${dayLabels[i]}</span>
+        </div>`;
+    }).join('');
+
+    const subjects = Object.entries(d.subjectAccuracy);
+    const ringColors = ['#007AFF', '#34C759', '#FF9500', '#AF52DE', '#FF2D55'];
+    const rings = subjects.map(([subj, pct], i) => {
+      const r = 28; const c = 2 * Math.PI * r;
+      const offset = c - (pct / 100) * c;
+      return `
+        <div class="ring-item">
+          <svg class="ring-svg" viewBox="0 0 64 64">
+            <circle class="ring-bg" cx="32" cy="32" r="${r}"/>
+            <circle class="ring-fg" cx="32" cy="32" r="${r}"
+              stroke="${ringColors[i]}"
+              stroke-dasharray="${c}" stroke-dashoffset="${c}"
+              data-ring-offset="${offset}"
+              style="transition: stroke-dashoffset 1s ease 0.${i}s;"/>
+            <text x="32" y="32" text-anchor="middle" dy="0.35em"
+              font-size="13" font-weight="700" fill="#1C1C1E"
+              transform="rotate(90, 32, 32)">${pct}%</text>
+          </svg>
+          <span class="ring-label">${subj}</span>
+        </div>`;
+    }).join('');
+
+    return `
+      <div class="page active" id="page-dashboard">
+        <!-- Today Study Time -->
+        <div class="card fade-in">
+          <div class="card-header"><span class="card-title">今日学习时长</span><span class="card-badge">${today}</span></div>
+          <div class="big-number-wrap">
+            <span class="big-number">${d.todayStudyMinutes}</span>
+            <span class="big-number-unit"> 分钟</span>
+            <div class="big-number-sub">📚 继续保持！</div>
+          </div>
+        </div>
+
+        <!-- Week Trend -->
+        <div class="card fade-in fade-in-d1">
+          <div class="card-header"><span class="card-title">本周学习趋势</span><span class="card-badge">分钟</span></div>
+          <div class="week-chart">${weekBars}</div>
+        </div>
+
+        <!-- Subject Accuracy Rings -->
+        <div class="card fade-in fade-in-d2">
+          <div class="card-header"><span class="card-title">各科正确率</span></div>
+          <div class="rings-row">${rings}</div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="card fade-in fade-in-d3" style="display:flex;justify-content:space-around;text-align:center;">
+          <div><div style="font-size:28px;font-weight:700;color:var(--success);">${subjects.length}</div><div style="font-size:13px;color:var(--text-secondary);">监测科目</div></div>
+          <div><div style="font-size:28px;font-weight:700;color:var(--primary);">${d.weakPoints.length}</div><div style="font-size:13px;color:var(--text-secondary);">薄弱知识点</div></div>
+          <div><div style="font-size:28px;font-weight:700;color:var(--warning);">${d.exams.length}</div><div style="font-size:13px;color:var(--text-secondary);">考试记录</div></div>
+        </div>
+      </div>`;
+  },
+
+  animateRings() {
+    $$('.ring-fg').forEach(el => {
+      const offset = el.dataset.ringOffset;
+      if (offset) el.setAttribute('stroke-dashoffset', offset);
+    });
+  },
+
+  // ==================== SCORES ====================
+  buildScores() {
+    const d = this.data;
+    const subjects = Object.keys(d.subjectAccuracy);
+    const exams = d.exams;
+
+    // Build table head
+    const thRows = `<tr><th>考试</th>${subjects.map(s => `<th>${s}</th>`).join('')}<th>趋势</th></tr>`;
+    // Build table rows
+    let trRows = '';
+    for (let i = 0; i < exams.length; i++) {
+      const ex = exams[i];
+      const cells = subjects.map(s => {
+        const score = ex.scores[s] || '-';
+        if (i === 0) return `<td>${score}</td>`; // first exam, no delta
+        const prev = exams[i - 1].scores[s];
+        if (prev === undefined) return `<td>${score}</td>`;
+        const delta = score - prev;
+        if (delta > 0) return `<td>${score} <span class="score-up">+${delta}</span></td>`;
+        if (delta < 0) return `<td>${score} <span class="score-down">${delta}</span></td>`;
+        return `<td>${score}</td>`;
+      }).join('');
+      // Overall trend arrow
+      let trendHtml = '';
+      if (i > 0) {
+        const prevTotal = Object.values(exams[i - 1].scores).reduce((a, b) => a + b, 0);
+        const curTotal = Object.values(ex.scores).reduce((a, b) => a + b, 0);
+        if (curTotal > prevTotal) trendHtml = '<span class="score-up">↑</span>';
+        else if (curTotal < prevTotal) trendHtml = '<span class="score-down">↓</span>';
+        else trendHtml = '→';
+      }
+      trRows += `<tr><td><strong>${ex.label}</strong><br><span style="font-size:11px;color:var(--text-tertiary);">${ex.date}</span></td>${cells}<td>${trendHtml}</td></tr>`;
+    }
+
+    // Weak points list
+    const weakItems = d.weakPoints.map((wp, i) => `
+      <div class="weak-item">
+        <div class="weak-rank r${i + 1}">${i + 1}</div>
+        <div class="weak-info">
+          <div class="weak-name">${wp.name}</div>
+          <div class="weak-subject">${wp.subject} · 错误率 ${wp.errorRate}%</div>
+        </div>
+        <div class="weak-bar-wrap"><div class="weak-bar-fill" style="width:${wp.errorRate}%"></div></div>
+      </div>`).join('');
+
+    return `
+      <div class="page active" id="page-scores">
+        <!-- Score Table Card -->
+        <div class="card fade-in">
+          <div class="card-header"><span class="card-title">历次考试成绩</span></div>
+          <div class="table-scroll">
+            <table class="score-table">${thRows}${trRows}</table>
+          </div>
+        </div>
+
+        <!-- Weak Points Card -->
+        <div class="card fade-in fade-in-d1">
+          <div class="card-header"><span class="card-title">薄弱知识点 Top 5</span><span class="card-badge">需重点突破</span></div>
+          <div class="weak-list">${weakItems}</div>
+        </div>
+      </div>`;
+  },
+
+  // ==================== AI REPORT ====================
+  buildReport() {
+    const d = this.data;
+    const report = d.aiReport;
+
+    const suggestionsHtml = report.suggestions.map((s, i) =>
+      `<p style="margin-bottom:6px;">${i + 1}. ${s}</p>`
+    ).join('');
+
+    const priorityMap = { high: '🔴 优先', medium: '🟡 中等', low: '🟢 一般' };
+    const nextFocusHtml = report.nextFocus.map(f => `
+      <div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:0.5px solid var(--separator);">
+        <span style="font-size:13px;flex-shrink:0;">${priorityMap[f.priority] || ''}</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:14px;">${f.area}</div>
+          <div style="font-size:12px;color:var(--text-secondary);">${f.detail}</div>
+        </div>
+      </div>`).join('');
+
+    return `
+      <div class="page active" id="page-report">
+        <!-- Weekly Summary -->
+        <div class="card fade-in">
+          <div class="card-header"><span class="card-title">📝 本周学习总结</span></div>
+          <div class="report-text">${report.summary}</div>
+        </div>
+
+        <!-- Suggestions -->
+        <div class="card fade-in fade-in-d1">
+          <div class="card-header"><span class="card-title">💡 学习建议</span></div>
+          <div class="report-text" style="font-size:13px;">${suggestionsHtml}</div>
+        </div>
+
+        <!-- Next Focus -->
+        <div class="card fade-in fade-in-d2">
+          <div class="card-header"><span class="card-title">🎯 下一步重点</span></div>
+          <div>${nextFocusHtml}</div>
+        </div>
+      </div>`;
+  },
+};
+
+// ===================== BOOT =====================
+document.addEventListener('DOMContentLoaded', () => app.init());
+</script>
+
+</body>
+</html>

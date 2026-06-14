@@ -1,0 +1,7 @@
+{
+  "version": 2,
+  "name": "zhongkao-mentor-web",
+  "builds": [
+    { "src": "**", "use": "@vercel/static" }
+  ]
+}
