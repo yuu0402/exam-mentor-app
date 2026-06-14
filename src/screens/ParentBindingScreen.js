@@ -22,6 +22,20 @@ import { generateBindingCode, bindParent } from '../api/backend';
 export default function ParentBindingScreen({ navigation }) {
   const { student } = useApp();
 
+  // [P2-2修复] 检查登录状态：未登录用户不允许访问家长绑定页面
+  useEffect(() => {
+    if (!student) {
+      Alert.alert(
+        '请先登录',
+        '家长绑定需要先登录账号，是否前往登录？',
+        [
+          { text: '取消', style: 'cancel' },
+          { text: '去登录', onPress: () => navigation.replace('Login') },
+        ]
+      );
+    }
+  }, [student, navigation]);
+
   // Tab状态
   const [activeTab, setActiveTab] = useState('generate'); // 'generate' | 'scan'
 

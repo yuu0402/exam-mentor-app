@@ -1115,17 +1115,23 @@ export function AppProvider({ children }) {
     } catch (e) {
       console.warn('后端登出失败:', e);
     }
-    // 清除本地存储的token
+    // [P2-3修复] 清除所有本地存储的敏感数据：token、用户信息、夸克Cookie、AI设置
     try {
-      await AsyncStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
-      await AsyncStorage.removeItem(STORAGE_KEYS.AUTH_USER);
+      await AsyncStorage.multiRemove([
+        STORAGE_KEYS.AUTH_TOKEN,
+        STORAGE_KEYS.AUTH_USER,
+        STORAGE_KEYS.QUARK_COOKIE,
+        STORAGE_KEYS.AI_SETTINGS,
+      ]);
     } catch (e) {
       console.warn('清除本地存储失败:', e);
     }
-    // 重置登录状态
+    // 重置登录状态和敏感状态
     dispatch({ type: ActionTypes.SET_LOGGED_IN, payload: false });
     dispatch({ type: ActionTypes.SET_TOKEN, payload: null });
     dispatch({ type: ActionTypes.SET_STUDENT, payload: null });
+    // [P2-3修复] 清除夸克Cookie状态（使用SET_QUARK_COOKIE将cookie和expiry设为null）
+    dispatch({ type: ActionTypes.SET_QUARK_COOKIE, payload: { cookie: null, expiry: null } });
   };
 
   // 检查认证状态（启动时调用）

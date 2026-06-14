@@ -195,7 +195,7 @@ export default function LoginScreen() {
         onChangeText={setCode}
         keyboardType="number-pad"
         maxLength={6}
-        secureTextEntry={false}
+        secureTextEntry={true}
         editable={!loading}
       />
       <TouchableOpacity
