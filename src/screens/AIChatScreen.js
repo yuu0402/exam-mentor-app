@@ -141,9 +141,14 @@ export default function AIChatScreen({ route }) {
   const [isAIUnconfigured, setIsAIUnconfigured] = useState(true);
 
   useEffect(() => {
-    loadAIKey().then(() => {
-      setIsAIUnconfigured(getAIStatus() === AI_STATUS.UNCONFIGURED);
-    });
+    loadAIKey()
+      .then(() => {
+        setIsAIUnconfigured(getAIStatus() === AI_STATUS.UNCONFIGURED);
+      })
+      .catch((e) => {
+        console.warn('加载AI配置失败:', e?.message || e);
+        setIsAIUnconfigured(true);
+      });
   }, []);
 
   // ── Build initial assistant greeting ────────────────────────
@@ -169,14 +174,45 @@ export default function AIChatScreen({ route }) {
       const reply = await chat(history);
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: reply }]);
     } catch (e) {
-      const errorMsg = e?.code === 'AI_UNCONFIGURED'
-        ? AI_UNCONFIGURED_MESSAGE
-        : '抱歉，AI暂时不可用 😢\n请检查网络后重试。';
+      let errorMsg = '抱歉，AI暂时不可用 😢\n请检查网络后重试。';
+      if (e?.code === 'AI_UNCONFIGURED') {
+        errorMsg = AI_UNCONFIGURED_MESSAGE;
+      } else if (e?.code === 'AI_RATE_LIMITED') {
+        errorMsg = 'AI 请求过于频繁，请稍后再试 ⏳';
+      } else if (e?.code === 'AI_NETWORK_ERROR') {
+        errorMsg = '网络连接失败，请检查网络后重试 📶';
+      } else if (e?.code === 'AI_SERVER_ERROR') {
+        errorMsg = 'AI 服务异常，请稍后重试 🔧';
+      }
+      console.warn('AI chat error:', e?.message || e);
       setMessages(prev => [...prev, { id: (Date.now() + 1).toString(), role: 'assistant', content: errorMsg }]);
     } finally {
       setLoading(false);
     }
   }, [messages, loading]);
+
+  // Keep the latest send in a ref so the auto-send effect can call it safely.
+  const sendRef = useRef(send);
+  sendRef.current = send;
+
+  // ── Auto-send the smart prompt when a context is provided ───
+  // Uses a content-based key so that navigating back with a new
+  // context re-triggers the auto-send, while the same context is not resent.
+  useEffect(() => {
+    if (!context) return;
+
+    const contextKey = JSON.stringify(context);
+    if (lastAutoSentKey.current === contextKey) return;
+
+    const prompt = generateContextPrompt(context);
+    if (!prompt) return;
+
+    lastAutoSentKey.current = contextKey;
+    const timer = setTimeout(() => {
+      sendRef.current(prompt);
+    }, 600);
+    return () => clearTimeout(timer);
+  }, [context]);
 
   // ── If AI is not configured, show the configuration guide (blocks all AI interactions) ──
   if (isAIUnconfigured) {
@@ -226,27 +262,6 @@ export default function AIChatScreen({ route }) {
       </View>
     );
   }
-
-  // Keep the latest send in a ref so the auto-send effect can call it safely.
-  const sendRef = useRef(send);
-  sendRef.current = send;
-
-  // ── Auto-send the smart prompt when a context is provided ───
-  // Uses a content-based key so that navigating back with a new
-  // context re-triggers the auto-send, while the same context is not resent.
-  useEffect(() => {
-    if (!context) return;
-
-    const contextKey = JSON.stringify(context);
-    if (lastAutoSentKey.current === contextKey) return;
-
-    const prompt = generateContextPrompt(context);
-    if (!prompt) return;
-
-    lastAutoSentKey.current = contextKey;
-    const timer = setTimeout(() => {
-      sendRef.current(prompt);
-    }, 600);
 
     return () => clearTimeout(timer);
   }, [context]);

@@ -43,6 +43,16 @@ export default function SettingsScreen({ navigation }) {
     loadSettings();
   }, []);
 
+  // 当夸克Cookie上下文变化时同步刷新状态显示
+  useEffect(() => {
+    if (quarkCookie) {
+      const status = isCookieExpired() ? '已过期' : '已配置';
+      setQuarkCookieStatus(status);
+    } else {
+      setQuarkCookieStatus('未配置');
+    }
+  }, [quarkCookie, isCookieExpired]);
+
   // 加载设置数据
   const loadSettings = async () => {
     try {
@@ -120,11 +130,15 @@ export default function SettingsScreen({ navigation }) {
 
   // 切换通知开关
   const handleNotificationToggle = async (value) => {
+    const prevValue = notificationsEnabled;
     setNotificationsEnabled(value);
     try {
       await AsyncStorage.setItem('@notification_settings', JSON.stringify({ enabled: value }));
     } catch (e) {
-      console.warn('保存通知设置失败:', e);
+      console.warn('保存通知设置失败:', e?.message);
+      // 写入失败时回滚状态
+      setNotificationsEnabled(prevValue);
+      Alert.alert('保存失败', '通知设置保存失败，请重试');
     }
   };
 
@@ -170,22 +184,20 @@ export default function SettingsScreen({ navigation }) {
             try {
               // 调用后端登出
               await backendLogout();
-              // 清除本地存储
-              await AsyncStorage.clear();
-              // 跳转到登录页
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
             } catch (e) {
-              console.warn('退出登录失败:', e);
-              // 仍然尝试本地登出
-              await AsyncStorage.clear();
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Login' }],
-              });
+              console.warn('后端登出失败:', e?.message);
             }
+            // 清除用户相关数据，保留 AI 配置和通知设置
+            await AsyncStorage.multiRemove([
+              '@student', '@onboarding', '@auth_token', '@nav_state',
+              '@study_plan', '@diagnosis_result', '@today_tasks',
+              '@course_cache', '@study_logs', '@entertainment_logs',
+            ]);
+            // 跳转到登录页
+            navigation.reset({
+              index: 0,
+              routes: [{ name: 'Login' }],
+            });
           },
         },
       ]

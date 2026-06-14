@@ -60,8 +60,13 @@ export default function ParentBindingScreen({ navigation }) {
 
   // 复制绑定码
   const handleCopyCode = async () => {
-    await Clipboard.setStringAsync(bindingCode);
-    Alert.alert('已复制', '绑定码已复制到剪贴板');
+    try {
+      await Clipboard.setStringAsync(bindingCode);
+      Alert.alert('已复制', '绑定码已复制到剪贴板');
+    } catch (e) {
+      console.warn('复制绑定码失败:', e?.message);
+      Alert.alert('复制失败', '无法访问剪贴板，请手动复制');
+    }
   };
 
   // 扫码（需要camera权限）

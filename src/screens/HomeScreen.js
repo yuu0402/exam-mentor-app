@@ -324,18 +324,6 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
       )}
 
-      {/* 学习摘要Toast */}
-      {studySummary && (
-        <View style={styles.toastBannerSummary}>
-          <Icon name="school" size={18} color="#fff" />
-          <Text style={styles.toastText}>
-            {studySummary.subject
-              ? `本次学习了${studySummary.subject} ${studySummary.minutes}分钟`
-              : `本次学习了 ${studySummary.minutes}分钟`}
-          </Text>
-        </View>
-      )}
-
       {/* Stats ring */}
       <View style={styles.ringRow}>
         <View style={styles.ring}>
