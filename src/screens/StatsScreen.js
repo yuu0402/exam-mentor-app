@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, RefreshControl } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { getWeeklyStats, getCheckinRecords, getCheckinStats } from '../api/backend';
 
@@ -240,6 +240,7 @@ export default function StatsScreen({ navigation }) {
   const [checkinRecords, setCheckinRecords] = useState([]);
   const [checkinStats, setCheckinStats] = useState({});
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   // 加载数据
   const loadData = useCallback(async () => {
@@ -302,6 +303,11 @@ export default function StatsScreen({ navigation }) {
     loadData();
   }, [loadData]);
 
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData().then(() => setRefreshing(false));
+  }, [loadData]);
+
   // 格式化时间
   const formatTime = (min) => {
     if (!min) return '0分钟';
@@ -323,7 +329,8 @@ export default function StatsScreen({ navigation }) {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#007AFF" />}
         {/* Tab 切换 */}
         <View style={styles.tabRow}>
           {TABS.map(tab => (

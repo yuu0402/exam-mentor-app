@@ -3,7 +3,7 @@
  * 展示学生信息、打卡数据、学习时长，提供家长绑定和设置入口
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Image,
   Dimensions,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
@@ -24,31 +25,29 @@ export default function ProfileScreen({ navigation }) {
   const { student, today, checkIn } = useApp();
   const [checkinStats, setCheckinStats] = useState({ total_days: 0, current_streak: 0 });
   const [learningStats, setLearningStats] = useState({ today_minutes: 0, week_minutes: 0 });
+  const [refreshing, setRefreshing] = useState(false);
 
   // 加载后端数据
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [checkinResult, learningResult] = await Promise.allSettled([
-          getCheckinStats(),
-          getLearningStats(),
-        ]);
-        if (checkinResult.status === 'fulfilled') {
-          setCheckinStats(checkinResult.value);
-        }
-        if (learningResult.status === 'fulfilled') {
-          const data = learningResult.value;
-          setLearningStats({
-            today_minutes: data.today_minutes || 0,
-            week_minutes: data.week_minutes || 0,
-          });
-        }
-      } catch (e) {
-        console.warn('加载个人中心数据失败:', e);
+  const fetchData = useCallback(async () => {
+    try {
+      const [checkinResult, learningResult] = await Promise.allSettled([
+        getCheckinStats(),
+        getLearningStats(),
+      ]);
+      if (checkinResult.status === 'fulfilled') setCheckinStats(checkinResult.value);
+      if (learningResult.status === 'fulfilled') {
+        const data = learningResult.value;
+        setLearningStats({ today_minutes: data.today_minutes || 0, week_minutes: data.week_minutes || 0 });
       }
-    };
-    fetchData();
+    } catch (e) { console.warn('加载个人中心数据失败:', e); }
   }, []);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchData().then(() => setRefreshing(false));
+  }, [fetchData]);
 
   // 格式化学习时长
   const formatStudyTime = (minutes) => {
@@ -73,7 +72,8 @@ export default function ProfileScreen({ navigation }) {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#007AFF" />}
       {/* 头部信息卡片 */}
       <View style={styles.headerCard}>
         <View style={styles.avatarContainer}>
