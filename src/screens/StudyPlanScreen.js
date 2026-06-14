@@ -192,7 +192,7 @@ export default function StudyPlanScreen({ navigation }) {
       if (!plan?.tasks) return plan;
       const tasks = plan.tasks.map(t => {
         if ((t.id || t.title) !== taskId) return t;
-        const cur = t.duration || t.plannedDuration || 25;
+        const cur = (t.duration ?? t.plannedDuration ?? 25);
         const next = Math.max(5, Math.min(120, cur + delta));
         return { ...t, duration: next, plannedDuration: next };
       });

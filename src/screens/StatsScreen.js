@@ -206,7 +206,7 @@ function CheckinCalendar({ records }) {
  */
 function WeeklyBarChart({ data }) {
   // 计算最高值作为 100% 基准
-  const maxMinutes = Math.max(...(data.map(d => d.minutes) || [1]), 1);
+  const maxMinutes = Math.max(...(Array.isArray(data) ? data.map(d => d.minutes) : []), 1);
 
   return (
     <View style={styles.barChartContainer}>

@@ -255,7 +255,7 @@ export default function LearningSessionScreen({ navigation }) {
   }
 
   // ========== PRACTICE 阶段 ==========
-  if (stage === STAGES.PRACTICE && questions.length > 0) {
+  if (stage === STAGES.PRACTICE && questions.length > 0 && currentQIndex < questions.length) {
     const q = questions[currentQIndex];
     const userAnswer = answers[q.id];
     const correct = showResult && userAnswer === q.answer;

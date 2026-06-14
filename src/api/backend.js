@@ -13,6 +13,13 @@ const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://172.29.58.198:8000';
 const TOKEN_KEY = '@auth_token';
 const USER_KEY = '@auth_user';
 
+// ======================== 401 事件发射器 ========================
+// 后端返回 401 时通知 AppContext 清除登录状态
+const authListeners = new Set();
+export function addAuthListener(callback) { authListeners.add(callback); }
+export function removeAuthListener(callback) { authListeners.delete(callback); }
+function dispatchAuthEvent(type) { authListeners.forEach(cb => cb(type)); }
+
 // ======================== 超时工具 ========================
 /**
  * 带超时的 fetch 请求
@@ -62,6 +69,13 @@ async function request(method, path, body = null, headers = {}) {
   const data = await res.json().catch(() => ({}));
 
   if (!res.ok) {
+    // 401：清除本地认证信息，触发全局登出
+    if (res.status === 401) {
+      await AsyncStorage.removeItem(TOKEN_KEY);
+      await AsyncStorage.removeItem(USER_KEY);
+      // 通知 AppContext 登出（通过自定义事件）
+      dispatchAuthEvent('backend:unauthorized');
+    }
     throw new Error(data.detail || data.error || `请求失败: ${res.status}`);
   }
   return data;

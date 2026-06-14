@@ -2,7 +2,7 @@ import React, { createContext, useContext, useReducer, useEffect, useMemo, useRe
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS, QUARK_CONFIG } from '../config';
 import { scheduleReview, getTodayReviews, markReviewed, getReviewStats } from '../utils/study-plan-generator';
-import { checkIn as backendCheckIn, getTodayTasks, completeTask as backendCompleteTask, startTask as backendStartTask, submitDiagnosis as backendSubmitDiagnosis, getWrongQuestions as backendGetWrongQuestions, logout as backendLogout, login as backendLogin, register as backendRegister, getMe as backendGetMe, sendCode as backendSendCode } from '../api/backend';
+import { checkIn as backendCheckIn, getTodayTasks, completeTask as backendCompleteTask, startTask as backendStartTask, submitDiagnosis as backendSubmitDiagnosis, getWrongQuestions as backendGetWrongQuestions, logout as backendLogout, login as backendLogin, register as backendRegister, getMe as backendGetMe, sendCode as backendSendCode, addAuthListener } from '../api/backend';
 import { checkNetworkStatus } from '../utils/network';
 
 // 初始状态
@@ -446,6 +446,27 @@ export function AppProvider({ children }) {
         unsubscribe();
       }
     };
+  }, []);
+
+  // 后端 401 监听——token 过期时自动触发全局登出
+  useEffect(() => {
+    const handleAuthEvent = (type) => {
+      if (type === 'backend:unauthorized') {
+        dispatch({ type: ActionTypes.LOGOUT });
+        // 清除所有本地用户数据（保留 AI 配置和通知设置由 SettingsScreen logout 处理）
+        AsyncStorage.multiRemove([
+          STORAGE_KEYS.STUDENT,
+          STORAGE_KEYS.ONBOARDING,
+          STORAGE_KEYS.AUTH_TOKEN,
+          STORAGE_KEYS.NAV_STATE,
+          STORAGE_KEYS.STUDY_PLAN,
+          STORAGE_KEYS.DIAGNOSIS_RESULT,
+          STORAGE_KEYS.TODAY_TASKS,
+        ]).catch(() => {});
+      }
+    };
+    addAuthListener(handleAuthEvent);
+    return () => removeAuthListener(handleAuthEvent);
   }, []);
 
   // 计时器状态持久化——每秒/每 5 秒写入 AsyncStorage，保证杀 App 后可断点续学
