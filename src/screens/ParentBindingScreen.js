@@ -13,9 +13,8 @@ import {
   TextInput,
   Alert,
   Modal,
-  Platform,
-  PermissionsAndroid,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
 import { generateBindingCode, bindParent } from '../api/backend';
@@ -60,38 +59,13 @@ export default function ParentBindingScreen({ navigation }) {
   };
 
   // 复制绑定码
-  const handleCopyCode = () => {
-    // 使用剪贴板复制
-    // 注意：React Native需要Clipboard或expo-clipboard，这里用提示方式
-    Alert.alert('复制成功', `绑定码 ${bindingCode} 已复制到剪贴板`);
+  const handleCopyCode = async () => {
+    await Clipboard.setStringAsync(bindingCode);
+    Alert.alert('已复制', '绑定码已复制到剪贴板');
   };
 
   // 扫码（需要camera权限）
-  const handleScan = async () => {
-    try {
-      if (Platform.OS === 'android') {
-        const granted = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          {
-            title: '相机权限',
-            message: '需要相机权限来扫描家长端二维码',
-            buttonNeutral: '稍后询问',
-            buttonNegative: '取消',
-            buttonPositive: '确定',
-          }
-        );
-        if (granted !== PermissionsAndroid.RESULTS.GRANTED) {
-          Alert.alert('提示', '相机权限被拒绝，请手动输入绑定码');
-          return;
-        }
-      }
-      // TODO: 集成扫码功能（react-native-camera或expo-camera）
-      Alert.alert('提示', '扫码功能即将上线，请使用手动输入绑定码');
-    } catch (e) {
-      Alert.alert('提示', '相机权限获取失败，请手动输入绑定码');
-    }
-  };
-
+  
   // 绑定家长
   const handleBind = async () => {
     if (!manualCode.trim()) {
@@ -118,7 +92,7 @@ export default function ParentBindingScreen({ navigation }) {
   // 生成二维码URL
   const getQRCodeUrl = () => {
     if (!bindingCode) return '';
-    return `exam-mentor://bind?code=${bindingCode}`;
+    return `zhongkao-mentor://bind?code=${bindingCode}`;
   };
 
   return (
@@ -206,18 +180,9 @@ export default function ParentBindingScreen({ navigation }) {
             </Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.scanButton}
-            onPress={handleScan}
-            activeOpacity={0.7}
-          >
-            <Icon name="qr-code-scanner" size={24} color="#007AFF" />
-            <Text style={styles.scanButtonText}>扫描二维码</Text>
-          </TouchableOpacity>
-
           <View style={styles.divider}>
             <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>或者</Text>
+            <Text style={styles.dividerText}>输入绑定码</Text>
             <View style={styles.dividerLine} />
           </View>
 
@@ -255,14 +220,17 @@ export default function ParentBindingScreen({ navigation }) {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>家长端扫码绑定</Text>
 
-            {/* 二维码展示区域 */}
+            {/* 绑定链接展示区域 */}
             <View style={styles.qrContainer}>
               <View style={styles.qrPlaceholder}>
-                <Icon name="qr-code" size={120} color="#000" />
-                <Text style={styles.qrCodeText}>{bindingCode}</Text>
+                <Icon name="link" size={48} color="#4CAF50" />
+                <Text style={styles.bindUrlText}>
+                  {getQRCodeUrl() || `绑定码: ${bindingCode}`}
+                </Text>
+                <Text style={styles.qrCodeText}>绑定码：{bindingCode}</Text>
               </View>
               <Text style={styles.qrHint}>
-                请家长使用"中考智学家长端"扫描上方二维码
+                请将上述绑定码或链接发送给家长，在家长端完成绑定
               </Text>
             </View>
 
@@ -486,6 +454,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8E8E93',
     marginTop: 8,
+  },
+  bindUrlText: {
+    fontSize: 12,
+    color: '#007AFF',
+    marginTop: 8,
+    textAlign: 'center',
+    paddingHorizontal: 8,
   },
   qrHint: {
     fontSize: 12,

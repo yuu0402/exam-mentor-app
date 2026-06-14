@@ -13,15 +13,15 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
-  AsyncStorage,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
 import { APP_INFO } from '../config';
 import { logout as backendLogout } from '../api/backend';
 
 export default function SettingsScreen({ navigation }) {
-  const { saveQuarkCookie, quarkCookie, isCookieExpired, saveAIConfig } = useApp();
+  const { saveQuarkCookie, quarkCookie, isCookieExpired } = useApp();
 
   // 夸克Cookie状态
   const [quarkCookieInput, setQuarkCookieInput] = useState('');
@@ -110,7 +110,6 @@ export default function SettingsScreen({ navigation }) {
         model: aiModel.trim() || 'gpt-4',
       };
       await AsyncStorage.setItem('@ai_settings', JSON.stringify(settings));
-      await saveAIConfig(settings);
       Alert.alert('保存成功', 'AI配置已保存');
     } catch (e) {
       Alert.alert('错误', '保存AI配置时发生错误');

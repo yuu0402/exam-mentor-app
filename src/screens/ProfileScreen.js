@@ -37,7 +37,11 @@ export default function ProfileScreen({ navigation }) {
           setCheckinStats(checkinResult.value);
         }
         if (learningResult.status === 'fulfilled') {
-          setLearningResult(learningResult.value);
+          const data = learningResult.value;
+          setLearningStats({
+            today_minutes: data.today_minutes || 0,
+            week_minutes: data.week_minutes || 0,
+          });
         }
       } catch (e) {
         console.warn('加载个人中心数据失败:', e);
@@ -45,14 +49,6 @@ export default function ProfileScreen({ navigation }) {
     };
     fetchData();
   }, []);
-
-  // 设置学习统计数据
-  const setLearningResult = (data) => {
-    setLearningStats({
-      today_minutes: data.today_minutes || 0,
-      week_minutes: data.week_minutes || 0,
-    });
-  };
 
   // 格式化学习时长
   const formatStudyTime = (minutes) => {

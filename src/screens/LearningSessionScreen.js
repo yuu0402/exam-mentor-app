@@ -20,7 +20,7 @@ Notifications.setNotificationHandler({
 });
 
 // 请求通知权限并设置 25 分钟番茄钟通知
-async function schedulePomodoroNotification(taskName) {
+async function schedulePomodoroNotification(taskName, durationMinutes = 25) {
   try {
     // 请求通知权限
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
@@ -35,17 +35,17 @@ async function schedulePomodoroNotification(taskName) {
     // 取消之前可能存在的所有通知
     await Notifications.cancelAllScheduledNotificationsAsync();
 
-    // 计划 25 分钟后发送通知
+    // 计划指定时长后发送通知
     await Notifications.scheduleNotificationAsync({
       content: {
         title: '番茄钟完成',
-        body: taskName ? `「${taskName}」25分钟学习结束，休息一下吧！` : '25分钟学习结束，休息一下吧！',
+        body: taskName ? `「${taskName}」${durationMinutes}分钟学习结束，休息一下吧！` : `${durationMinutes}分钟学习结束，休息一下吧！`,
         sound: true,
         data: { type: 'pomodoro_complete' },
       },
-      trigger: { seconds: 25 * 60 },
+      trigger: { seconds: durationMinutes * 60 },
     });
-    console.log('番茄钟通知已设置，25分钟后提醒');
+    console.log(`番茄钟通知已设置，${durationMinutes}分钟后提醒`);
   } catch (e) {
     console.warn('设置通知失败:', e.message);
   }
