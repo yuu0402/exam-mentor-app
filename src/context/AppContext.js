@@ -2,10 +2,15 @@ import React, { createContext, useContext, useReducer, useEffect, useMemo, useRe
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS, QUARK_CONFIG } from '../config';
 import { scheduleReview, getTodayReviews, markReviewed, getReviewStats } from '../utils/study-plan-generator';
-import { checkIn as backendCheckIn, getTodayTasks, completeTask as backendCompleteTask, startTask as backendStartTask, submitDiagnosis as backendSubmitDiagnosis, getWrongQuestions as backendGetWrongQuestions } from '../api/backend';
+import { checkIn as backendCheckIn, getTodayTasks, completeTask as backendCompleteTask, startTask as backendStartTask, submitDiagnosis as backendSubmitDiagnosis, getWrongQuestions as backendGetWrongQuestions, logout as backendLogout } from '../api/backend';
+import { checkNetworkStatus } from '../utils/network';
 
 // 初始状态
 const initialState = {
+  // 登录状态
+  isLoggedIn: false,
+  token: null,
+
   // 学生信息
   student: null,
 
@@ -79,6 +84,9 @@ const initialState = {
   // 打卡Toast
   checkInToast: false,
   studySummary: null,
+
+  // 网络状态
+  isOnline: true,
 };
 
 // Action Types
@@ -114,6 +122,7 @@ const ActionTypes = {
   SET_TODAY: 'SET_TODAY',
   RESTORE_TIMER: 'RESTORE_TIMER',
   SET_ONBOARDED: 'SET_ONBOARDED',
+  SET_ONLINE: 'SET_ONLINE',
 };
 
 // Reducer
@@ -358,6 +367,9 @@ function appReducer(state, action) {
     case ActionTypes.SET_ONBOARDED:
       return { ...state, isOnboarded: action.payload };
 
+    case ActionTypes.SET_ONLINE:
+      return { ...state, isOnline: action.payload };
+
     default:
       return state;
   }
@@ -391,6 +403,35 @@ export function AppProvider({ children }) {
     const interval = setInterval(checkDate, 60000);  // 每分钟检查
     return () => clearInterval(interval);
   }, [state.today.date]);
+
+  // 网络状态监控
+  useEffect(() => {
+    let unsubscribe;
+
+    const initNetworkMonitor = async () => {
+      try {
+        const { isConnected } = await checkNetworkStatus();
+        dispatch({ type: ActionTypes.SET_ONLINE, payload: isConnected });
+
+        // 订阅网络状态变化
+        const NetInfo = require('@react-native-community/netinfo').default;
+        unsubscribe = NetInfo.addEventListener(netState => {
+          const online = !!(netState.isConnected && netState.isInternetReachable !== 'none');
+          dispatch({ type: ActionTypes.SET_ONLINE, payload: online });
+        });
+      } catch (e) {
+        console.warn('网络监控初始化失败:', e.message);
+      }
+    };
+
+    initNetworkMonitor();
+
+    return () => {
+      if (unsubscribe && typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
+    };
+  }, []);
 
   // 计时器状态持久化——每秒/每 5 秒写入 AsyncStorage，保证杀 App 后可断点续学
   useEffect(() => {
@@ -1019,6 +1060,25 @@ export function AppProvider({ children }) {
     return getReviewStats(state.wrongAnswers);
   }, [state.wrongAnswers]);
 
+  // 退出登录
+  const logout = async () => {
+    try {
+      // 调用后端登出API
+      await backendLogout();
+    } catch (e) {
+      console.warn('后端登出失败:', e);
+    }
+    // 清除本地存储的token
+    try {
+      await AsyncStorage.removeItem('@backend_token');
+      await AsyncStorage.removeItem('@backend_user');
+    } catch (e) {
+      console.warn('清除本地存储失败:', e);
+    }
+    // 重置状态
+    dispatch({ type: ActionTypes.SET_STUDENT, payload: null });
+  };
+
   // Context value
   const contextValue = {
     // 状态
@@ -1054,9 +1114,13 @@ export function AppProvider({ children }) {
     updateWrongAnswer,
     loadWrongAnswers,
     wrongAnswers: state.wrongAnswers,
+    logout,
 
     // 刷新数据
     refreshData: loadInitialData,
+
+    // 网络状态
+    isOnline: state.isOnline,
   };
 
   return (
