@@ -712,7 +712,7 @@ ${weakLines}
           </ScrollView>
         </View>
 
-        <ScrollView style={styles.questionScroll}><｜end▁of▁thinking｜>
+        <ScrollView style={styles.questionScroll}>
           {/* Subject tag */}
           <View style={styles.questionMeta}>
             <View
