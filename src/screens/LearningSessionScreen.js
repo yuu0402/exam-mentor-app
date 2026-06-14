@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import * as Notifications from 'expo-notifications';
 import { useApp } from '../context/AppContext';
 import { getRecommendedCourses } from '../api/course-parser';
 import { getQuestionsBySubject, selectRandomQuestions } from '../utils/diagnosis-system';
@@ -8,6 +9,47 @@ import {
   startPomodoro,
   completePomodoro,
 } from '../api/backend';
+
+// 配置通知响应处理器（必须在组件外设置）
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+// 请求通知权限并设置 25 分钟番茄钟通知
+async function schedulePomodoroNotification(taskName) {
+  try {
+    // 请求通知权限
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.warn('通知权限未授权');
+        return;
+      }
+    }
+
+    // 取消之前可能存在的所有通知
+    await Notifications.cancelAllScheduledNotificationsAsync();
+
+    // 计划 25 分钟后发送通知
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: '番茄钟完成',
+        body: taskName ? `「${taskName}」25分钟学习结束，休息一下吧！` : '25分钟学习结束，休息一下吧！',
+        sound: true,
+        data: { type: 'pomodoro_complete' },
+      },
+      trigger: { seconds: 25 * 60 },
+    });
+    console.log('番茄钟通知已设置，25分钟后提醒');
+  } catch (e) {
+    console.warn('设置通知失败:', e.message);
+  }
+}
 
 // 学习会话状态机
 const STAGES = {
@@ -73,9 +115,14 @@ export default function LearningSessionScreen({ navigation }) {
         try {
           const pomodoroRes = await startPomodoro({ task_id: task.id });
           setPomodoroSessionId(pomodoroRes.session_id);
+          // 启动番茄钟通知
+          await schedulePomodoroNotification(task.task || task.name || currentTask?.subject);
         } catch (e) {
           console.warn('启动番茄钟失败:', e.message);
         }
+      } else {
+        // 无 task_id 时也设置通知（通用 25 分钟番茄钟）
+        await schedulePomodoroNotification(task.task || task.name || task.subject);
       }
     } catch (e) {
       console.error('初始化学习失败:', e);
@@ -104,6 +151,13 @@ export default function LearningSessionScreen({ navigation }) {
   };
 
   const handleFinish = async () => {
+    // 取消已计划的番茄钟通知
+    try {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+    } catch (e) {
+      console.warn('取消通知失败:', e.message);
+    }
+
     // 结束番茄钟（completePomodoro 只接受 task_id 和 duration，不接受 session_id）
     if (currentTask?.id) {
       try {

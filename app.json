@@ -36,12 +36,21 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
-    "plugins": [],
+    "plugins": [
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/icon.png",
+          "color": "#4CAF50"
+        }
+      ]
+    ],
     "sdkVersion": "54.0.0",
     "extra": {
       "eas": {
         "projectId": "780d0f02-98b9-4306-923b-9761ce50b838"
-      }
+      },
+      "apiUrl": "http://172.29.58.198:8000"
     }
   }
 }

@@ -438,6 +438,10 @@ export default function HomeScreen({ navigation }) {
             <Text style={styles.bottomLinkText}>错题({todayReviewCount})</Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity style={styles.bottomLink} onPress={() => navigation.navigate('Stats')}>
+          <Icon name="bar-chart" size={18} color="#AF52DE" />
+          <Text style={styles.bottomLinkText}>学习数据</Text>
+        </TouchableOpacity>
       </View>
 
       <View style={{height:40}} />

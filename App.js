@@ -19,6 +19,7 @@ import WrongAnswerScreen from './src/screens/WrongAnswerScreen';
 import QuickPracticeScreen from './src/screens/QuickPracticeScreen';
 import OnboardingScreen from './src/screens/OnboardingScreen';
 import LearningSessionScreen from './src/screens/LearningSessionScreen';
+import StatsScreen from './src/screens/StatsScreen';
 
 // ── Deep Linking 配置 ──────────────────────────────────────────
 const linking = {
@@ -90,6 +91,7 @@ function MainStack() {
       <Stack.Screen name="Diagnosis" component={DiagnosisScreen} options={{ title: '诊断测试' }} />
       <Stack.Screen name="StudyPlan" component={StudyPlanScreen} options={{ title: '学习计划' }} />
       <Stack.Screen name="WrongAnswers" component={WrongAnswerScreen} options={{ title: '错题本' }} />
+      <Stack.Screen name="Stats" component={StatsScreen} options={{ title: '学习数据' }} />
     </Stack.Navigator>
   );
 }
