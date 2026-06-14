@@ -1451,10 +1451,24 @@ export function adjustPlanBasedOnPerformance(plan, performanceData) {
 const EBBINGHAUS_INTERVALS = [1, 2, 4, 7, 15, 30];
 
 /**
+ * 获取本地日期字符串（YYYY-MM-DD）
+ * 避免 toISOString() 返回 UTC 日期导致跨日边界差一天的问题
+ * @param {Date} date - JavaScript Date 对象
+ * @returns {string} 本地日期字符串
+ */
+function getLocalDateString(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
  * 为错题生成艾宾浩斯复习调度计划
  *
  * 基于错题添加日期 (addedAt)，按标准间隔 [1, 2, 4, 7, 15, 30] 天
  * 计算出全部 6 个复习日期、当前间隔及下一次复习日期。
+ * P2-006 修复：改用本地时间计算，避免 toISOString() UTC 日期导致跨日差一天。
  *
  * @param {{ addedAt?: string }} wrongAnswerItem - 错题对象，至少包含 addedAt (ISO 字符串)
  * @returns {{
@@ -1469,9 +1483,10 @@ export function scheduleReview(wrongAnswerItem) {
   const baseDate = new Date(addedAt);
 
   const reviewDates = EBBINGHAUS_INTERVALS.map(interval => {
+    // P2-006 修复：使用本地时间计算日期，而非 UTC
     const d = new Date(baseDate);
     d.setDate(d.getDate() + interval);
-    return d.toISOString().split('T')[0];
+    return getLocalDateString(d);
   });
 
   return {
@@ -1493,7 +1508,8 @@ export function scheduleReview(wrongAnswerItem) {
 export function getTodayReviews(wrongAnswers) {
   if (!Array.isArray(wrongAnswers) || wrongAnswers.length === 0) return [];
 
-  const today = new Date().toISOString().split('T')[0];
+  // [P2-006修复] 使用本地时间获取今天日期字符串，避免 UTC 凌晨差一天
+  const today = getLocalDateString(new Date());
 
   return wrongAnswers.filter(wa => {
     if (!wa || !wa.reviewState) return false;
@@ -1520,8 +1536,9 @@ export function markReviewed(wrongAnswer, remembered) {
 
   const reviewState = wrongAnswer.reviewState || {};
   const currentStage = reviewState.stage != null ? reviewState.stage : 0;
-  const now = new Date().toISOString();
-  const today = now.split('T')[0];
+  // [P2-006修复] 使用本地时间获取今天日期，避免 UTC 凌晨差一天
+  const now = new Date();
+  const today = getLocalDateString(now);
 
   let newStage;
   let completedAll = false;
@@ -1544,14 +1561,16 @@ export function markReviewed(wrongAnswer, remembered) {
   const reviewDates = EBBINGHAUS_INTERVALS.map(interval => {
     const d = new Date(baseDate);
     d.setDate(d.getDate() + interval);
-    return d.toISOString().split('T')[0];
+    // [P2-006修复] 使用本地时间，避免 UTC 跨日差一天
+    return getLocalDateString(d);
   });
 
   // 下一次复习日期 = 今天 + 当前新阶段的间隔
   const nextInterval = EBBINGHAUS_INTERVALS[newStage] || EBBINGHAUS_INTERVALS[0];
   const nextReviewDateObj = new Date();
   nextReviewDateObj.setDate(nextReviewDateObj.getDate() + nextInterval);
-  const nextReviewDate = nextReviewDateObj.toISOString().split('T')[0];
+  // [P2-006修复] 使用本地时间
+  const nextReviewDate = getLocalDateString(nextReviewDateObj);
 
   const reviewEntry = {
     date: today,
@@ -1595,7 +1614,8 @@ export function getReviewStats(wrongAnswers) {
     return { total: 0, reviewed: 0, remembered: 0, forgotten: 0, overdue: 0 };
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  // [P2-006修复] 使用本地时间获取今天日期，避免 UTC 凌晨差一天
+  const today = getLocalDateString(new Date());
 
   let reviewed = 0;
   let remembered = 0;
