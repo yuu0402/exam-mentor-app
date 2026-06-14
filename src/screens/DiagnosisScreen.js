@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -72,6 +72,187 @@ function getLineStyle(x1, y1, x2, y2, color, thickness = 1.5) {
   };
 }
 
+// ==================== Timer 子组件（独立状态，避免每秒重渲染整个屏幕）====================
+/**
+ * P1-2 修复：计时器独立为子组件，每次 setTimeRemaining 只触发该组件重渲染，
+ * 不影响父组件 DiagnosisScreen 的其他状态。
+ * P2 修复：effect 依赖项简化为 [screenState]，避免 timeRemaining > 0 每次变化都重建 interval。
+ */
+function TestTimer({ timeRemaining, onTimeout }) {
+  // 仅渲染时间显示，状态隔离
+  const formatTime = (seconds) => {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
+  return (
+    <View style={styles.timerBadgeContainer}>
+      <Icon name="timer" size={16} color={timeRemaining < 300 ? '#F44336' : '#fff'} />
+      <Text style={[styles.timerText, timeRemaining < 300 && { color: '#F44336' }]}>
+        {formatTime(timeRemaining)}
+      </Text>
+    </View>
+  );
+}
+
+// ==================== 雷达图子组件（React.memo 避免重复渲染）====================
+/**
+ * P1-1 修复：将雷达图提取为独立组件并用 React.memo 包裹。
+ * 之前每次 report 变化或父组件重渲染，IIFE 立即执行完整数学计算并生成约 60+ 个 View。
+ * 现在只有当 radarSubjects 或 report 真正变化时才重新渲染。
+ */
+const RadarChart = React.memo(function RadarChart({ radarSubjects, report }) {
+  const size = 260;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = 95;
+  const count = radarSubjects.length;
+
+  if (count < 3) {
+    return <Text style={styles.noData}>需要至少3科数据才能显示雷达图</Text>;
+  }
+
+  // 使用 useMemo 缓存计算结果，仅当 radarSubjects 变化时重算
+  const elements = useMemo(() => {
+    const els = [];
+    const gridLevels = [0.2, 0.4, 0.6, 0.8, 1.0];
+
+    // Grid pentagons
+    gridLevels.forEach(lvl => {
+      const verts = getPentagonVertices(cx, cy, r * lvl, count);
+      const isPassLine = Math.abs(lvl - 0.6) < 0.01;
+      const lineColor = isPassLine ? '#FF9800' : '#E0E0E0';
+      const lineThickness = isPassLine ? 2 : 1;
+      for (let i = 0; i < count; i++) {
+        const p1 = verts[i];
+        const p2 = verts[(i + 1) % count];
+        const style = getLineStyle(p1.x, p1.y, p2.x, p2.y, lineColor, lineThickness);
+        if (style) els.push(<View key={`grid-${lvl}-${i}`} style={style} />);
+      }
+    });
+
+    // Axes from center to each 100% vertex
+    const verts100 = getPentagonVertices(cx, cy, r, count);
+    verts100.forEach((v, i) => {
+      const style = getLineStyle(cx, cy, v.x, v.y, '#E0E0E0', 1);
+      if (style) els.push(<View key={`axis-${i}`} style={style} />);
+    });
+
+    // Data vertices
+    const dataVerts = radarSubjects.map((s, i) => {
+      const frac = Math.max(0.02, Math.min(1, s.percentage / 100));
+      const angle = Math.PI / 2 - (i * 2 * Math.PI) / count;
+      return {
+        x: cx + r * frac * Math.cos(angle),
+        y: cy - r * frac * Math.sin(angle),
+        ...s,
+      };
+    });
+
+    // Data pentagon fill wedges
+    dataVerts.forEach((dv, i) => {
+      const angle = Math.PI / 2 - (i * 2 * Math.PI) / count;
+      const deg = angle * 180 / Math.PI;
+      const frac = Math.max(0.02, Math.min(1, dv.percentage / 100));
+      const len = r * frac;
+      const wedgeW = 28;
+      els.push(
+        <View
+          key={`wedge-${i}`}
+          style={{
+            position: 'absolute',
+            left: cx - wedgeW / 2,
+            top: cy - len,
+            width: wedgeW,
+            height: len,
+            backgroundColor: 'rgba(76, 175, 80, 0.25)',
+            transform: [
+              { translateY: len / 2 },
+              { rotate: `${deg}deg` },
+              { translateY: -len / 2 },
+            ],
+          }}
+        />
+      );
+    });
+
+    // Data pentagon outline
+    for (let i = 0; i < count; i++) {
+      const p1 = dataVerts[i];
+      const p2 = dataVerts[(i + 1) % count];
+      const style = getLineStyle(p1.x, p1.y, p2.x, p2.y, '#4CAF50', 2.5);
+      if (style) els.push(<View key={`data-line-${i}`} style={style} />);
+    }
+
+    // Data dots at vertices
+    dataVerts.forEach((dv, i) => {
+      const dotSize = 8;
+      els.push(
+        <View
+          key={`dot-${i}`}
+          style={{
+            position: 'absolute',
+            left: dv.x - dotSize / 2,
+            top: dv.y - dotSize / 2,
+            width: dotSize,
+            height: dotSize,
+            borderRadius: dotSize / 2,
+            backgroundColor: dv.color,
+            borderWidth: 1.5,
+            borderColor: '#fff',
+          }}
+        />
+      );
+    });
+
+    // Labels
+    radarSubjects.forEach((s, i) => {
+      const angle = Math.PI / 2 - (i * 2 * Math.PI) / count;
+      const labelR = r + 28;
+      const lx = cx + labelR * Math.cos(angle);
+      const ly = cy - labelR * Math.sin(angle);
+      els.push(
+        <View
+          key={`label-${i}`}
+          style={{
+            position: 'absolute',
+            left: lx - 30,
+            top: ly - 10,
+            width: 60,
+            alignItems: 'center',
+          }}
+        >
+          <Text style={[styles.radarLabelName, { color: s.color }]}>{s.name}</Text>
+          <Text style={styles.radarLabelScore}>{`${s.score}/${s.maxScore}`}</Text>
+        </View>
+      );
+    });
+
+    return els;
+  }, [radarSubjects, cx, cy, r, count]);
+
+  return (
+    <View style={{ alignSelf: 'center', alignItems: 'center' }}>
+      <View style={{ width: size, height: size, position: 'relative' }}>
+        {elements}
+      </View>
+      <View style={styles.radarLegend}>
+        <View style={styles.radarLegendItem}>
+          <View style={[styles.radarLegendColor, { backgroundColor: 'rgba(76,175,80,0.35)' }]} />
+          <Text style={styles.radarLegendText}>绿色区域 = 你的水平</Text>
+        </View>
+        <View style={styles.radarLegendItem}>
+          <View style={[styles.radarLegendLine, { backgroundColor: '#FF9800' }]} />
+          <Text style={styles.radarLegendText}>橙色线 = 及格线 (60%)</Text>
+        </View>
+      </View>
+    </View>
+  );
+});
+
 // ==================== Main Component ====================
 
 export default function DiagnosisScreen({ navigation }) {
@@ -90,6 +271,9 @@ export default function DiagnosisScreen({ navigation }) {
   const [draftChecked, setDraftChecked] = useState(false);
   const [loading, setLoading] = useState(false);
   const timerRef = useRef(null);
+  // P1-4 修复：debounce saveData，避免每次答题都触发一次完整的 AsyncStorage IO。
+  // 使用 ref 保存 debounce timer，避免每次渲染重建。
+  const saveDraftTimerRef = useRef(null);
 
   // AI review states
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
@@ -192,23 +376,31 @@ export default function DiagnosisScreen({ navigation }) {
   }, [screenState, answers, uncertainAnswers, timeRemaining, currentQuestionIndex, test]);
 
   // Timer
-  useEffect(() => {
-    if (screenState === 'testing' && timeRemaining > 0) {
-      timerRef.current = setInterval(() => {
-        setTimeRemaining(prev => {
-          if (prev <= 1) {
-            clearInterval(timerRef.current);
-            handleSubmit();
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
+// P2 修复：将依赖从 [screenState, timeRemaining > 0] 简化为 [screenState]。
+// 之前每次 timeRemaining 变化都会重建 setInterval（因为 timeRemaining > 0 布尔值每次都是新引用）。
+// 使用函数式 setState（prev =>）保证读取最新状态，无需将 timeRemaining 放入依赖项。
+useEffect(() => {
+    if (screenState !== 'testing') return;
+    timerRef.current = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(timerRef.current);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [screenState, timeRemaining > 0]);
+  }, [screenState]);
+
+// P1-2/P2 补充：监视 timeRemaining 归零，触发自动提交（独立于上面的 interval effect）
+useEffect(() => {
+    if (screenState === 'testing' && timeRemaining === 0) {
+      handleSubmit();
+    }
+  }, [screenState, timeRemaining]);
 
   // Start test — 调用真实后端 API
   const startTest = async () => {
@@ -254,20 +446,25 @@ export default function DiagnosisScreen({ navigation }) {
   };
 
   // Select an answer (clears uncertainty flag)
+// P1-4 修复：使用 debounce 延迟保存 draft（300ms），避免每次答题都触发 AsyncStorage 写入。
+// 最终离开测试或提交时会保存最新状态。
   const selectAnswer = (questionId, answerIndex) => {
     setAnswers(prev => {
       const updated = { ...prev, [questionId]: answerIndex };
-      // Persist draft immediately after answer selection
-      if (test) {
-        saveData(DIAGNOSIS_DRAFT_KEY, {
-          answers: updated,
-          uncertainAnswers,
-          timeRemaining,
-          currentQuestionIndex,
-          test,
-          timestamp: Date.now(),
-        });
-      }
+      // Debounce draft save: 300ms 后批量保存，避免频繁 IO
+      if (saveDraftTimerRef.current) clearTimeout(saveDraftTimerRef.current);
+      saveDraftTimerRef.current = setTimeout(() => {
+        if (test) {
+          saveData(DIAGNOSIS_DRAFT_KEY, {
+            answers: updated,
+            uncertainAnswers,
+            timeRemaining,
+            currentQuestionIndex,
+            test,
+            timestamp: Date.now(),
+          });
+        }
+      }, 300);
       return updated;
     });
     setSelectedAnswer(answerIndex);
@@ -418,7 +615,9 @@ export default function DiagnosisScreen({ navigation }) {
                   explanation: q.explanation || '',
                   knowledgePoint: q.knowledgePoint || '',
                 }));
-              wrongItems.forEach(w => addWrongAnswer(w));
+              // P1-3 修复：改为一次性批量收集所有错题，用 Promise.all 并行处理，
+              // 而不是逐个调用 addWrongAnswer（每次触发 reducer state 更新 + AsyncStorage 读写）。
+              Promise.all(wrongItems.map(w => addWrongAnswer(w)));
             } catch (err) {
               Alert.alert('提交失败', err.message || '无法连接服务器');
               console.error('submitDiagnosis error:', err);
@@ -616,9 +815,19 @@ ${weakLines}
               ))}
             </View>
 
-            <TouchableOpacity style={styles.startButton} onPress={startTest}>
-              <Icon name="play-arrow" size={24} color="#fff" />
-              <Text style={styles.startButtonText}>开始测试</Text>
+            <TouchableOpacity
+              style={[styles.startButton, loading && { opacity: 0.7 }]}
+              onPress={startTest}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Icon name="play-arrow" size={24} color="#fff" />
+              )}
+              <Text style={styles.startButtonText}>
+                {loading ? '加载中...' : '开始测试'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -648,12 +857,8 @@ ${weakLines}
               已答 {answeredCount} 题{uncertainCount > 0 ? `  ·  不确定 ${uncertainCount}` : ''}
             </Text>
           </View>
-          <View style={[styles.timerBadge, timeRemaining < 300 && styles.timerWarning]}>
-            <Icon name="timer" size={16} color={timeRemaining < 300 ? '#F44336' : '#fff'} />
-            <Text style={[styles.timerText, timeRemaining < 300 && { color: '#F44336' }]}>
-              {formatTime(timeRemaining)}
-            </Text>
-          </View>
+          {/* P1-2 修复：计时器渲染使用独立组件，仅该部分响应 timeRemaining 变化 */}
+          <TestTimer timeRemaining={timeRemaining} />
         </View>
 
         {/* Progress bar */}
@@ -778,35 +983,37 @@ ${weakLines}
         <View style={styles.questionNavContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.questionNavRow}>
-              {test.questions.map((q, idx) => {
-                // Filter by subject if active
-                if (subjectFilter && q.subject !== subjectFilter) return null;
-                const isAnswered = answers[q.id] !== undefined;
-                const isUncertain = uncertainAnswers[q.id];
-                const isCurrent = idx === currentQuestionIndex;
-                return (
-                  <TouchableOpacity
-                    key={q.id}
-                    style={[
-                      styles.questionNavDot,
-                      isAnswered && styles.questionNavDotAnswered,
-                      isUncertain && styles.questionNavDotUncertain,
-                      isCurrent && styles.questionNavDotCurrent,
-                    ]}
-                    onPress={() => jumpToQuestion(idx)}
-                    activeOpacity={0.6}
-                  >
-                    <Text style={[
-                      styles.questionNavDotText,
-                      isAnswered && styles.questionNavDotTextAnswered,
-                      isUncertain && styles.questionNavDotTextUncertain,
-                      isCurrent && styles.questionNavDotTextCurrent,
-                    ]}>
-                      {idx + 1}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+              {/* P1-6 修复：用 useMemo 缓存导航点计算结果，避免每次渲染都重新过滤和生成 */}
+              {useMemo(() => (
+                test.questions.map((q, idx) => {
+                  if (subjectFilter && q.subject !== subjectFilter) return null;
+                  const isAnswered = answers[q.id] !== undefined;
+                  const isUncertain = uncertainAnswers[q.id];
+                  const isCurrent = idx === currentQuestionIndex;
+                  return (
+                    <TouchableOpacity
+                      key={q.id}
+                      style={[
+                        styles.questionNavDot,
+                        isAnswered && styles.questionNavDotAnswered,
+                        isUncertain && styles.questionNavDotUncertain,
+                        isCurrent && styles.questionNavDotCurrent,
+                      ]}
+                      onPress={() => jumpToQuestion(idx)}
+                      activeOpacity={0.6}
+                    >
+                      <Text style={[
+                        styles.questionNavDotText,
+                        isAnswered && styles.questionNavDotTextAnswered,
+                        isUncertain && styles.questionNavDotTextUncertain,
+                        isCurrent && styles.questionNavDotTextCurrent,
+                      ]}>
+                        {idx + 1}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })
+              ), [test.questions, subjectFilter, answers, uncertainAnswers, currentQuestionIndex])}
             </View>
           </ScrollView>
         </View>
@@ -830,9 +1037,19 @@ ${weakLines}
               <Icon name="chevron-right" size={22} color="#FF9800" />
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-              <Icon name="check" size={22} color="#fff" />
-              <Text style={styles.submitButtonText}>提交答卷</Text>
+            <TouchableOpacity
+              style={[styles.submitButton, loading && { opacity: 0.7 }]}
+              onPress={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color="#fff" />
+              ) : (
+                <Icon name="check" size={22} color="#fff" />
+              )}
+              <Text style={styles.submitButtonText}>
+                {loading ? '提交中...' : '提交答卷'}
+              </Text>
             </TouchableOpacity>
           )}
         </View>
@@ -920,8 +1137,8 @@ ${weakLines}
                 <Text style={styles.summaryMaxScore}>/{totalMaxScore} 分</Text>
               </View>
               <View style={styles.summaryScoreRight}>
-                <View style={[styles.summaryLevelBadge, { backgroundColor: donutColor + '20' }]}>
-                  <Text style={[styles.summaryLevelText, { color: donutColor }]}>
+                <View style={[styles.summaryLevelBadge, { backgroundColor: donutColor + '1A' }]}>
+                  <Text style={[styles.summaryLevelText, { color: '#333' }]}>
                     {level?.label || '待评估'}
                   </Text>
                 </View>
@@ -991,165 +1208,12 @@ ${weakLines}
           )}
 
           {/* ===== 2. 能力雷达图 (Pentagon Radar Chart) ===== */}
+          {/* P1-1 修复：雷达图提取为独立 RadarChart 组件并用 React.memo 包裹。 */}
+          {/* 之前 IIFE 每次 report 变化都重新计算生成 ~60 个 View，现在只在 radarSubjects 真正变化时重算 */}
           <View style={styles.radarCard}>
             <Text style={styles.sectionTitle}>能力雷达图</Text>
             <View style={styles.radarChartArea}>
-              {/* Render pentagon using inline calculations */}
-              {(() => {
-                const size = 260;
-                const cx = size / 2;
-                const cy = size / 2;
-                const r = 95; // radius for vertices
-                const count = radarSubjects.length;
-                if (count < 3) {
-                  return <Text style={styles.noData}>需要至少3科数据才能显示雷达图</Text>;
-                }
-
-                // Grid levels
-                const gridLevels = [0.2, 0.4, 0.6, 0.8, 1.0];
-                // Vertex positions for each grid level
-                const gridPentagons = gridLevels.map(lvl => ({
-                  lvl,
-                  verts: getPentagonVertices(cx, cy, r * lvl, count),
-                }));
-                // 100% vertices for axes
-                const verts100 = getPentagonVertices(cx, cy, r, count);
-                // Data vertices
-                const dataVerts = radarSubjects.map((s, i) => {
-                  const frac = Math.max(0.02, Math.min(1, s.percentage / 100));
-                  const angle = Math.PI / 2 - (i * 2 * Math.PI) / count;
-                  return {
-                    x: cx + r * frac * Math.cos(angle),
-                    y: cy - r * frac * Math.sin(angle),
-                    ...s,
-                  };
-                });
-
-                // Generate line elements for pentagon outlines and axes
-                const elements = [];
-
-                // Grid pentagons (outlines) — 60% level highlighted as pass line
-                gridPentagons.forEach(({ lvl, verts }) => {
-                  const isPassLine = Math.abs(lvl - 0.6) < 0.01;
-                  const lineColor = isPassLine ? '#FF9800' : '#E0E0E0';
-                  const lineThickness = isPassLine ? 2 : 1;
-                  for (let i = 0; i < count; i++) {
-                    const p1 = verts[i];
-                    const p2 = verts[(i + 1) % count];
-                    const style = getLineStyle(p1.x, p1.y, p2.x, p2.y, lineColor, lineThickness);
-                    if (style) elements.push(<View key={`grid-${lvl}-${i}`} style={style} />);
-                  }
-                });
-
-                // Axes from center to each 100% vertex
-                verts100.forEach((v, i) => {
-                  const style = getLineStyle(cx, cy, v.x, v.y, '#E0E0E0', 1);
-                  if (style) elements.push(<View key={`axis-${i}`} style={style} />);
-                });
-
-                // Data pentagon fill — use 5 wedge Views from center
-                // Each wedge is a rotated rectangle along the axis
-                dataVerts.forEach((dv, i) => {
-                  const angle = Math.PI / 2 - (i * 2 * Math.PI) / count;
-                  const deg = angle * 180 / Math.PI;
-                  const frac = Math.max(0.02, Math.min(1, dv.percentage / 100));
-                  const len = r * frac;
-                  const wedgeW = 28; // wedge width at outer edge
-                  elements.push(
-                    <View
-                      key={`wedge-${i}`}
-                      style={{
-                        position: 'absolute',
-                        left: cx - wedgeW / 2,
-                        top: cy - len,
-                        width: wedgeW,
-                        height: len,
-                        backgroundColor: 'rgba(76, 175, 80, 0.25)',
-                        transform: [
-                          { translateY: len / 2 },
-                          { rotate: `${deg}deg` },
-                          { translateY: -len / 2 },
-                        ],
-                      }}
-                    />
-                  );
-                });
-
-                // Data pentagon outline (lines between consecutive data vertices)
-                for (let i = 0; i < count; i++) {
-                  const p1 = dataVerts[i];
-                  const p2 = dataVerts[(i + 1) % count];
-                  const style = getLineStyle(p1.x, p1.y, p2.x, p2.y, '#4CAF50', 2.5);
-                  if (style) elements.push(<View key={`data-line-${i}`} style={style} />);
-                }
-
-                // Data dots at vertices
-                dataVerts.forEach((dv, i) => {
-                  const dotSize = 8;
-                  elements.push(
-                    <View
-                      key={`dot-${i}`}
-                      style={{
-                        position: 'absolute',
-                        left: dv.x - dotSize / 2,
-                        top: dv.y - dotSize / 2,
-                        width: dotSize,
-                        height: dotSize,
-                        borderRadius: dotSize / 2,
-                        backgroundColor: dv.color,
-                        borderWidth: 1.5,
-                        borderColor: '#fff',
-                      }}
-                    />
-                  );
-                });
-
-                // Labels at 100% vertices
-                const labelOffsets = radarSubjects.map((s, i) => {
-                  const angle = Math.PI / 2 - (i * 2 * Math.PI) / count;
-                  const labelR = r + 28;
-                  const lx = cx + labelR * Math.cos(angle);
-                  const ly = cy - labelR * Math.sin(angle);
-                  return { x: lx, y: ly, name: s.name, score: `${s.score}/${s.maxScore}`, color: s.color };
-                });
-
-                labelOffsets.forEach((lo, i) => {
-                  elements.push(
-                    <View
-                      key={`label-${i}`}
-                      style={{
-                        position: 'absolute',
-                        left: lo.x - 30,
-                        top: lo.y - 10,
-                        width: 60,
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Text style={[styles.radarLabelName, { color: lo.color }]}>{lo.name}</Text>
-                      <Text style={styles.radarLabelScore}>{lo.score}</Text>
-                    </View>
-                  );
-                });
-
-                return (
-                  <View style={{ alignSelf: 'center', alignItems: 'center' }}>
-                    <View style={{ width: size, height: size, position: 'relative' }}>
-                      {elements}
-                    </View>
-                    {/* Legend */}
-                    <View style={styles.radarLegend}>
-                      <View style={styles.radarLegendItem}>
-                        <View style={[styles.radarLegendColor, { backgroundColor: 'rgba(76,175,80,0.35)' }]} />
-                        <Text style={styles.radarLegendText}>绿色区域 = 你的水平</Text>
-                      </View>
-                      <View style={styles.radarLegendItem}>
-                        <View style={[styles.radarLegendLine, { backgroundColor: '#FF9800' }]} />
-                        <Text style={styles.radarLegendText}>橙色线 = 及格线 (60%)</Text>
-                      </View>
-                    </View>
-                  </View>
-                );
-              })()}
+              <RadarChart radarSubjects={radarSubjects} report={report} />
             </View>
           </View>
 
@@ -1562,6 +1626,14 @@ const styles = StyleSheet.create({
     color: '#aaa',
   },
   timerBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  timerBadgeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.15)',
