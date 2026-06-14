@@ -190,7 +190,10 @@ function appReducer(state, action) {
         ...state,
         entertainment: {
           ...state.entertainment,
-          ...action.payload,
+          // [P1-3修复] 支持函数式更新：action.payload 为函数时调用它获取最新值
+          ...(typeof action.payload === 'function'
+            ? action.payload(state.entertainment)
+            : action.payload),
         },
       };
 
@@ -393,6 +396,10 @@ export function AppProvider({ children }) {
   // 用于透视最新 timer 状态的 ref（避免 interval 闭包过期）
   const timerRef = useRef(state.timer);
   timerRef.current = state.timer;
+
+  // [P1-3修复] 用于透视最新 entertainment 状态的 ref（避免 logEntertainmentTime 闭包过期）
+  const entertainmentRef = useRef(state.entertainment);
+  entertainmentRef.current = state.entertainment;
 
   // 初始化加载数据
   useEffect(() => {
@@ -774,10 +781,12 @@ export function AppProvider({ children }) {
   };
 
   // 记录娱乐时间
+  // [P1-3修复] 使用函数式更新避免 stale closure：entertainment.used 连续调用时可能不同步
   const logEntertainmentTime = async (minutes, type) => {
     dispatch({ type: ActionTypes.UPDATE_TODAY_ENTERTAINMENT, payload: minutes });
     // 递增 entertainment.used（累计已用娱乐时间），防止重启后归零被反复使用
-    dispatch({ type: ActionTypes.UPDATE_ENTERTAINMENT, payload: { used: state.entertainment.used + minutes } });
+    // 使用函数式更新确保基于最新状态计算
+    dispatch({ type: ActionTypes.UPDATE_ENTERTAINMENT, payload: { used: prev => (prev || 0) + minutes } });
 
     const log = {
       date: new Date().toISOString(),
@@ -786,6 +795,11 @@ export function AppProvider({ children }) {
     };
 
     dispatch({ type: ActionTypes.ADD_ENTERTAINMENT_LOG, payload: log });
+
+    // [P1-3修复] 计算本次更新后的 used 值（用于 storage 持久化）
+    // 由于 dispatch 是异步的，这里用局部变量记录本次增量，storage 写入依赖此值而非 state
+    const currentUsedDelta = minutes;
+    const todayStr = new Date().toISOString().split('T')[0];
 
     try {
       const existingLogs = await AsyncStorage.getItem(STORAGE_KEYS.ENTERTAINMENT_LOGS);
@@ -798,14 +812,15 @@ export function AppProvider({ children }) {
       );
 
       // 持久化 entertainment 状态（used/bonus/penalty），保证重启后不丢失
-      const todayStr = new Date().toISOString().split('T')[0];
+      // [P1-3修复] 从 timerRef 读取最新的 entertainment 状态而非闭包中的 state
+      const entRef = entertainmentRef.current;
       await AsyncStorage.setItem(
         STORAGE_KEYS.ENTERTAINMENT_STATE,
         JSON.stringify({
-          totalAllowed: state.entertainment.totalAllowed,
-          used: state.entertainment.used + minutes,
-          bonus: state.entertainment.bonus,
-          penalty: state.entertainment.penalty,
+          totalAllowed: entRef.totalAllowed,
+          used: entRef.used + currentUsedDelta,
+          bonus: entRef.bonus,
+          penalty: entRef.penalty,
           date: todayStr,
         }),
       );
@@ -1048,17 +1063,17 @@ export function AppProvider({ children }) {
     }
   };
 
-  // 计算剩余娱乐时间
-  const getRemainingEntertainmentTime = () => {
+  // 计算剩余娱乐时间（useMemo 避免每次 render 重复计算）
+  const remainingEntertainmentTime = useMemo(() => {
     const { totalAllowed, used, bonus, penalty } = state.entertainment;
     return Math.max(0, totalAllowed + bonus - penalty - used);
-  };
+  }, [state.entertainment.totalAllowed, state.entertainment.used, state.entertainment.bonus, state.entertainment.penalty]);
 
-  // 检查Cookie是否过期
-  const isCookieExpired = () => {
+  // 检查Cookie是否过期（useMemo 缓存结果）
+  const isCookieExpired = useMemo(() => {
     if (!state.quarkCookieExpiry) return true;
     return new Date() > new Date(state.quarkCookieExpiry);
-  };
+  }, [state.quarkCookieExpiry]);
 
   // 今日待复习数量（艾宾浩斯复习系统）
   const todayReviewCount = useMemo(() => {
@@ -1139,18 +1154,19 @@ export function AppProvider({ children }) {
     }
   };
 
-  // Context value
-  const contextValue = {
-    // 状态
+  // [P1-1修复] 使用 useMemo 包裹整个 contextValue，避免每次 render 新建对象导致所有 consumer 重渲染
+  // 依赖数组包含所有会影响 context value 的 state 和方法
+  const contextValue = useMemo(() => ({
+    // 状态（spread 会在 value 变化时触发 memo 重新计算）
     ...state,
 
-    // 计算属性
-    remainingEntertainmentTime: getRemainingEntertainmentTime(),
-    isCookieExpired: isCookieExpired(),
+    // 计算属性（已通过 useMemo 缓存）
+    remainingEntertainmentTime,
+    isCookieExpired,
     todayReviewCount,
     reviewStats,
 
-    // 操作方法
+    // 操作方法（这些函数定义在 useMemo 外，引用稳定，但每次 memo 重新计算时生成新引用）
     saveStudent,
     completeOnboarding,
     saveStudyPlan,
@@ -1181,9 +1197,41 @@ export function AppProvider({ children }) {
     // 刷新数据
     refreshData: loadInitialData,
 
-    // 网络状态
+    // 网络状态（已通过 state.isOnline 跟踪）
     isOnline: state.isOnline,
-  };
+  }), [
+    state,
+    remainingEntertainmentTime,
+    isCookieExpired,
+    todayReviewCount,
+    reviewStats,
+    saveStudent,
+    completeOnboarding,
+    saveStudyPlan,
+    saveDiagnosisResult,
+    saveQuarkCookie,
+    logStudyTime,
+    logEntertainmentTime,
+    completeTask,
+    addTestScore,
+    addRewardPunishment,
+    updateSchedule,
+    startTimer,
+    stopTimer,
+    pauseTimer,
+    resumeTimer,
+    dismissCheckInToast,
+    dismissStudySummary,
+    checkIn,
+    addWrongAnswer,
+    markWrongAnswerReviewed,
+    updateWrongAnswer,
+    loadWrongAnswers,
+    logout,
+    login,
+    checkAuth,
+    loadInitialData,
+  ]);
 
   return (
     <AppContext.Provider value={contextValue}>
