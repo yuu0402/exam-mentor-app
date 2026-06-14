@@ -364,7 +364,7 @@ export default function CourseListScreen({ navigation }) {
   const hasRecommendations = weakPoints.length > 0 && recommendedFids.size > 0;
 
   // 检测是否在离线/无Cookie模式下运行
-  const isOfflineMode = isCookieExpired || !quarkCookie;
+  const isOfflineMode = isCookieExpired() || !quarkCookie;
 
   // 简化版 Cookie 配置指引
   const showSetupGuide = () => {
