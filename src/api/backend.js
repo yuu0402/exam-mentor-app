@@ -8,7 +8,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // ======================== 配置 ========================
-const API_BASE = 'https://handles-scores-try-his.trycloudflare.com';
+// 开发/测试模式：使用 WSL 后端 IP
+const API_BASE = 'http://172.29.58.198:8000';
 const TOKEN_KEY = '@backend_token';
 const USER_KEY = '@backend_user';
 
