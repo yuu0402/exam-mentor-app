@@ -54,8 +54,9 @@ export default function ParentBindingScreen({ navigation }) {
 
   // 刷新绑定码
   const handleRefreshCode = async () => {
-    setQrModalVisible(false);
+    // 等生成完成后再关闭 modal，避免用户看到中间状态
     await handleGenerateCode();
+    setQrModalVisible(false);
   };
 
   // 复制绑定码
