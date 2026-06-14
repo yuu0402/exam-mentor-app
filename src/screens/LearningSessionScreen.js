@@ -116,7 +116,7 @@ export default function LearningSessionScreen({ navigation }) {
           const pomodoroRes = await startPomodoro({ task_id: task.id });
           setPomodoroSessionId(pomodoroRes.session_id);
           // 启动番茄钟通知
-          await schedulePomodoroNotification(task.task || task.name || currentTask?.subject);
+          await schedulePomodoroNotification(task.task || task.name || task.subject);
         } catch (e) {
           console.warn('启动番茄钟失败:', e.message);
         }

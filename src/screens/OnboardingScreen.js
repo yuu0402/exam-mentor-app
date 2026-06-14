@@ -7,7 +7,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
 import { EXAM_SUBJECTS } from '../config';
-import { login, register } from '../api/backend';
+import { login, register, updateProfile } from '../api/backend';
 
 const { width } = Dimensions.get('window');
 
@@ -124,23 +124,32 @@ export default function OnboardingScreen() {
     };
 
     try {
-      // [P0] 调用后端注册 API，使用 name 作为 displayName，role 固定为 student
-      // username 使用 name 转换（后端要求 username 字段）
+      // 调用后端注册 API
       const usernameKey = name.trim().toLowerCase().replace(/\s+/g, '_');
       const result = await register({
         username: usernameKey,
-        password: `onboard_${usernameKey}`, // 引导期间临时密码，后续可修改
+        password: `onboard_${usernameKey}`,
         displayName: name.trim(),
         role: 'student',
       });
-      // 成功后保存后端返回的用户信息
+      // 保存后端返回的用户信息
       if (result && result.user) {
         await saveStudent({ ...studentInfo, ...result.user, backendUser: result.user });
       } else {
         await saveStudent(studentInfo);
       }
+      // 同步用户画像到后端（年级/城市/目标分）
+      try {
+        await updateProfile({
+          displayName: name.trim(),
+          grade: grade === 'grade8' ? '八年级' : '九年级',
+          city,
+          targetScore,
+        });
+      } catch (profileErr) {
+        console.warn('同步用户画像失败:', profileErr.message);
+      }
     } catch (apiErr) {
-      // [P0] API 调用失败时 fallback 本地逻辑，不闪退
       console.warn('后端注册 API 调用失败，fallback 本地保存:', apiErr.message);
       await saveStudent(studentInfo);
     }
