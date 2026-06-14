@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "私人导师",
+    "slug": "zhongkao-mentor",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#4CAF50"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.zhongkao.mentor",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSCameraUsageDescription": "用于扫描二维码登录",
+        "NSMicrophoneUsageDescription": "用于语音答疑",
+        "NSPhotoLibraryUsageDescription": "用于保存学习资料"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#4CAF50"
+      },
+      "package": "com.zhongkao.mentor",
+      "versionCode": 1
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [],
+    "sdkVersion": "54.0.0",
+    "owner": "yuuu02",
+    "extra": {
+      "eas": {
+        "projectId": "780d0f02-98b9-4306-923b-9761ce50b838"
+      }
+    }
+  }
+}

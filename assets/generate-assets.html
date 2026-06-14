@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>ZhongKao Mentor - Asset Generator</title>
+<style>
+  body { font-family: Arial, sans-serif; padding: 20px; background: #f5f5f5; }
+  h1 { color: #333; }
+  .section { background: white; padding: 20px; margin: 15px 0; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+  canvas { display: none; }
+  .btn { display: inline-block; padding: 12px 24px; background: #4CAF50; color: white; border: none;
+         border-radius: 6px; cursor: pointer; font-size: 16px; margin: 5px; text-decoration: none; }
+  .btn:hover { background: #45a049; }
+  .btn-all { background: #2196F3; font-size: 18px; padding: 15px 30px; }
+  .btn-all:hover { background: #1976D2; }
+  .info { color: #666; margin: 5px 0; }
+  .preview { border: 1px solid #ddd; margin: 10px 0; max-width: 300px; }
+  #status { color: #4CAF50; font-weight: bold; margin: 10px 0; }
+</style>
+</head>
+<body>
+
+<h1>ZhongKao Mentor - Asset PNG Generator</h1>
+<p>Click the button below to generate and download all required asset files.</p>
+
+<div class="section">
+  <h2>Generate All Assets</h2>
+  <button class="btn btn-all" onclick="generateAndDownloadAll()">Generate & Download All PNG Files</button>
+  <p id="status"></p>
+</div>
+
+<div class="section">
+  <h2>Individual Downloads</h2>
+  <button class="btn" onclick="downloadIcon()">icon.png (1024x1024)</button>
+  <button class="btn" onclick="downloadSplash()">splash.png (1284x2778)</button>
+  <button class="btn" onclick="downloadAdaptiveIcon()">adaptive-icon.png (1024x1024)</button>
+  <button class="btn" onclick="downloadFavicon()">favicon.png (48x48)</button>
+</div>
+
+<div class="section">
+  <h2>Preview</h2>
+  <p>Icon preview (scaled):</p>
+  <canvas id="previewCanvas" width="256" height="256" style="display:block; border:1px solid #ccc;"></canvas>
+</div>
+
+<!-- Hidden canvases for each asset -->
+<canvas id="iconCanvas" width="1024" height="1024"></canvas>
+<canvas id="splashCanvas" width="1284" height="2778"></canvas>
+<canvas id="adaptiveCanvas" width="1024" height="1024"></canvas>
+<canvas id="faviconCanvas" width="48" height="48"></canvas>
+
+<script>
+const THEME_GREEN = '#4CAF50';
+const THEME_GREEN_DARK = '#388E3C';
+const THEME_GREEN_LIGHT = '#66BB6A';
+const THEME_GREEN_BG = '#E8F5E9';
+const WHITE = '#FFFFFF';
+const GOLD = '#FFD700';
+const TEXT_COLOR = '#FFFFFF';
+
+function drawIcon(ctx, w, h) {
+  // Background - rounded rectangle with gradient
+  const radius = w * 0.22;
+  const gradient = ctx.createLinearGradient(0, 0, w, h);
+  gradient.addColorStop(0, THEME_GREEN_LIGHT);
+  gradient.addColorStop(1, THEME_GREEN_DARK);
+
+  // Rounded rect
+  ctx.beginPath();
+  ctx.moveTo(radius, 0);
+  ctx.lineTo(w - radius, 0);
+  ctx.quadraticCurveTo(w, 0, w, radius);
+  ctx.lineTo(w, h - radius);
+  ctx.quadraticCurveTo(w, h, w - radius, h);
+  ctx.lineTo(radius, h);
+  ctx.quadraticCurveTo(0, h, 0, h - radius);
+  ctx.lineTo(0, radius);
+  ctx.quadraticCurveTo(0, 0, radius, 0);
+  ctx.closePath();
+  ctx.fillStyle = gradient;
+  ctx.fill();
+
+  // Book shape
+  const bookW = w * 0.45;
+  const bookH = h * 0.35;
+  const bookX = (w - bookW) / 2;
+  const bookY = h * 0.22;
+
+  // Book shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.15)';
+  roundRect(ctx, bookX + 4, bookY + 4, bookW, bookH, 8);
+  ctx.fill();
+
+  // Book body (white)
+  ctx.fillStyle = WHITE;
+  roundRect(ctx, bookX, bookY, bookW, bookH, 8);
+  ctx.fill();
+
+  // Book spine line
+  ctx.strokeStyle = THEME_GREEN;
+  ctx.lineWidth = w * 0.012;
+  ctx.beginPath();
+  ctx.moveTo(bookX + bookW * 0.08, bookY);
+  ctx.lineTo(bookX + bookW * 0.08, bookY + bookH);
+  ctx.stroke();
+
+  // Book lines (text lines)
+  ctx.strokeStyle = THEME_GREEN_LIGHT;
+  ctx.lineWidth = w * 0.008;
+  for (let i = 1; i <= 4; i++) {
+    const lineY = bookY + bookH * (0.2 + i * 0.15);
+    ctx.beginPath();
+    ctx.moveTo(bookX + bookW * 0.15, lineY);
+    ctx.lineTo(bookX + bookW * (0.9 - Math.random() * 0.15), lineY);
+    ctx.stroke();
+  }
+
+  // Star above the book
+  const starX = w * 0.72;
+  const starY = h * 0.18;
+  const starR = w * 0.12;
+  drawStar(ctx, starX, starY, 5, starR, starR * 0.45, GOLD, 'rgba(255,215,0,0.3)');
+
+  // Second smaller star
+  const star2X = w * 0.25;
+  const star2Y = h * 0.15;
+  const star2R = w * 0.07;
+  drawStar(ctx, star2X, star2Y, 5, star2R, star2R * 0.45, GOLD, null);
+
+  // Text "私人导师"
+  ctx.fillStyle = WHITE;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const fontSize = w * 0.1;
+  ctx.font = `bold ${fontSize}px "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif`;
+  ctx.shadowColor = 'rgba(0,0,0,0.3)';
+  ctx.shadowBlur = 4;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+  ctx.fillText('私人导师', w / 2, h * 0.75);
+  ctx.shadowColor = 'transparent';
+
+  // Subtitle
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  const subSize = w * 0.05;
+  ctx.font = `${subSize}px "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif`;
+  ctx.fillText('科学育娃 精准提分', w / 2, h * 0.87);
+}
+
+function drawSplash(ctx, w, h) {
+  // Full green gradient background
+  const gradient = ctx.createLinearGradient(0, 0, 0, h);
+  gradient.addColorStop(0, THEME_GREEN_LIGHT);
+  gradient.addColorStop(0.5, THEME_GREEN);
+  gradient.addColorStop(1, THEME_GREEN_DARK);
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+
+  // Subtle pattern circles
+  ctx.fillStyle = 'rgba(255,255,255,0.05)';
+  for (let i = 0; i < 20; i++) {
+    const cx = Math.random() * w;
+    const cy = Math.random() * h;
+    const cr = Math.random() * w * 0.3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, cr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Central icon area - white circle background
+  const iconRadius = w * 0.2;
+  ctx.fillStyle = 'rgba(255,255,255,0.15)';
+  ctx.beginPath();
+  ctx.arc(w / 2, h * 0.35, iconRadius * 1.2, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Book in center
+  const bookW = w * 0.3;
+  const bookH = h * 0.1;
+  const bookX = (w - bookW) / 2;
+  const bookY = h * 0.32;
+
+  ctx.fillStyle = WHITE;
+  roundRect(ctx, bookX, bookY, bookW, bookH, 12);
+  ctx.fill();
+
+  // Book spine
+  ctx.strokeStyle = THEME_GREEN;
+  ctx.lineWidth = w * 0.008;
+  ctx.beginPath();
+  ctx.moveTo(bookX + bookW * 0.06, bookY);
+  ctx.lineTo(bookX + bookW * 0.06, bookY + bookH);
+  ctx.stroke();
+
+  // Book lines
+  ctx.strokeStyle = 'rgba(76,175,80,0.5)';
+  ctx.lineWidth = w * 0.005;
+  for (let i = 1; i <= 3; i++) {
+    const lineY = bookY + bookH * (0.25 + i * 0.18);
+    ctx.beginPath();
+    ctx.moveTo(bookX + bookW * 0.12, lineY);
+    ctx.lineTo(bookX + bookW * 0.85, lineY);
+    ctx.stroke();
+  }
+
+  // Stars
+  const starX = w * 0.65;
+  const starY = h * 0.28;
+  drawStar(ctx, starX, starY, 5, w * 0.08, w * 0.035, GOLD, null);
+
+  const star2X = w * 0.35;
+  const star2Y = h * 0.26;
+  drawStar(ctx, star2X, star2Y, 5, w * 0.05, w * 0.02, GOLD, null);
+
+  // Title "私人导师"
+  ctx.fillStyle = WHITE;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,0.2)';
+  ctx.shadowBlur = 6;
+  ctx.shadowOffsetX = 2;
+  ctx.shadowOffsetY = 2;
+
+  const titleSize = w * 0.1;
+  ctx.font = `bold ${titleSize}px "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif`;
+  ctx.fillText('私人导师', w / 2, h * 0.52);
+  ctx.shadowColor = 'transparent';
+
+  // Subtitle
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  const subSize = w * 0.045;
+  ctx.font = `${subSize}px "Microsoft YaHei", "PingFang SC", "Noto Sans SC", Arial, sans-serif`;
+  ctx.fillText('科学育娃，精准提分', w / 2, h * 0.58);
+
+  // Bottom decorative line
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(w * 0.2, h * 0.88);
+  ctx.lineTo(w * 0.8, h * 0.88);
+  ctx.stroke();
+
+  // Version text
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = `${w * 0.025}px Arial`;
+  ctx.fillText('v1.0.0', w / 2, h * 0.92);
+}
+
+function drawFavicon(ctx, w, h) {
+  // Simple rounded green square
+  const radius = w * 0.15;
+  ctx.beginPath();
+  ctx.moveTo(radius, 0);
+  ctx.lineTo(w - radius, 0);
+  ctx.quadraticCurveTo(w, 0, w, radius);
+  ctx.lineTo(w, h - radius);
+  ctx.quadraticCurveTo(w, h, w - radius, h);
+  ctx.lineTo(radius, h);
+  ctx.quadraticCurveTo(0, h, 0, h - radius);
+  ctx.lineTo(0, radius);
+  ctx.quadraticCurveTo(0, 0, radius, 0);
+  ctx.closePath();
+  ctx.fillStyle = THEME_GREEN;
+  ctx.fill();
+
+  // Simplified book shape
+  ctx.fillStyle = WHITE;
+  const bW = w * 0.55;
+  const bH = h * 0.4;
+  const bX = (w - bW) / 2;
+  const bY = (h - bH) / 2 - h * 0.08;
+  roundRect(ctx, bX, bY, bW, bH, 2);
+  ctx.fill();
+
+  // Book spine
+  ctx.fillStyle = THEME_GREEN;
+  ctx.fillRect(bX, bY, bW * 0.1, bH);
+
+  // Tiny star
+  ctx.fillStyle = GOLD;
+  drawStar(ctx, w * 0.72, h * 0.22, 5, w * 0.18, w * 0.07, GOLD, null);
+}
+
+function drawStar(ctx, cx, cy, spikes, outerR, innerR, color, shadowColor) {
+  let rot = -Math.PI / 2;
+  const step = Math.PI / spikes;
+
+  ctx.fillStyle = color;
+  if (shadowColor) {
+    ctx.shadowColor = shadowColor;
+    ctx.shadowBlur = outerR * 0.5;
+  }
+  ctx.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const r = i % 2 === 0 ? outerR : innerR;
+    const x = cx + Math.cos(rot) * r;
+    const y = cy + Math.sin(rot) * r;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+    rot += step;
+  }
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowColor = 'transparent';
+  ctx.shadowBlur = 0;
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+function downloadCanvas(canvasId, filename) {
+  const canvas = document.getElementById(canvasId);
+  const link = document.createElement('a');
+  link.download = filename;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function downloadIcon() {
+  const canvas = document.getElementById('iconCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 1024, 1024);
+  drawIcon(ctx, 1024, 1024);
+  downloadCanvas('iconCanvas', 'icon.png');
+}
+
+function downloadSplash() {
+  const canvas = document.getElementById('splashCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 1284, 2778);
+  drawSplash(ctx, 1284, 2778);
+  downloadCanvas('splashCanvas', 'splash.png');
+}
+
+function downloadAdaptiveIcon() {
+  const canvas = document.getElementById('adaptiveCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 1024, 1024);
+  drawIcon(ctx, 1024, 1024);
+  downloadCanvas('adaptiveCanvas', 'adaptive-icon.png');
+}
+
+function downloadFavicon() {
+  const canvas = document.getElementById('faviconCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 48, 48);
+  drawFavicon(ctx, 48, 48);
+  downloadCanvas('faviconCanvas', 'favicon.png');
+}
+
+async function generateAndDownloadAll() {
+  const status = document.getElementById('status');
+  status.textContent = 'Generating icon.png...';
+  downloadIcon();
+  await new Promise(r => setTimeout(r, 500));
+
+  status.textContent = 'Generating splash.png...';
+  downloadSplash();
+  await new Promise(r => setTimeout(r, 500));
+
+  status.textContent = 'Generating adaptive-icon.png...';
+  downloadAdaptiveIcon();
+  await new Promise(r => setTimeout(r, 500));
+
+  status.textContent = 'Generating favicon.png...';
+  downloadFavicon();
+  await new Promise(r => setTimeout(r, 500));
+
+  status.textContent = 'All 4 files generated! Please move them to the assets/ directory.';
+}
+
+// Generate preview on load
+window.onload = function() {
+  const previewCanvas = document.getElementById('previewCanvas');
+  const previewCtx = previewCanvas.getContext('2d');
+  drawIcon(previewCtx, 256, 256);
+};
+</script>
+
+</body>
+</html>
