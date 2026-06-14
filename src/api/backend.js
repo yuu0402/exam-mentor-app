@@ -61,9 +61,13 @@ async function request(method, path, body = null, headers = {}) {
     res = await fetchWithTimeout(`${API_BASE}${path}`, config, 15000);
   } catch (err) {
     if (err.name === 'AbortError') {
-      throw new Error('网络请求超时，请检查网络连接后重试');
+      const e = new Error('网络请求超时，请检查网络连接后重试');
+      e.code = 'NETWORK_TIMEOUT';
+      throw e;
     }
-    throw new Error(`网络连接失败：${err.message}`);
+    const e = new Error(`网络连接失败：${err.message}`);
+    e.code = 'NETWORK_ERROR';
+    throw e;
   }
 
   const data = await res.json().catch(() => ({}));
@@ -75,8 +79,13 @@ async function request(method, path, body = null, headers = {}) {
       await AsyncStorage.removeItem(USER_KEY);
       // 通知 AppContext 登出（通过自定义事件）
       dispatchAuthEvent('backend:unauthorized');
+      const e = new Error(data.detail || '登录已过期，请重新登录');
+      e.code = 'UNAUTHORIZED';
+      throw e;
     }
-    throw new Error(data.detail || data.error || `请求失败: ${res.status}`);
+    const e = new Error(data.detail || data.error || `请求失败: ${res.status}`);
+    e.code = res.status >= 500 ? 'SERVER_ERROR' : res.status === 429 ? 'RATE_LIMITED' : 'API_ERROR';
+    throw e;
   }
   return data;
 }
