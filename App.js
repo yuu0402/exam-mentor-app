@@ -8,6 +8,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { AppProvider, useApp } from './src/context/AppContext';
+import NetworkStatusBar from './src/components/NetworkStatusBar';
 
 import HomeScreen from './src/screens/HomeScreen';
 import CourseListScreen from './src/screens/CourseListScreen';
@@ -205,6 +206,7 @@ function AppRoot() {
   return (
     <>
       <StatusBar style="dark" />
+      <NetworkStatusBar />
       <NavigationContainer
         ref={navigationRef}
         linking={linking}
