@@ -229,6 +229,14 @@ async function fetchWithRetry(url, body, apiKey, opts = {}) {
         const errorText = await res.text().catch(() => '');
         const err = new Error(`AI请求失败: HTTP ${status}${errorText ? ' - ' + errorText.slice(0, 200) : ''}`);
         err.httpStatus = status;
+        // 根据 HTTP 状态码设置错误类型，供 AIChatScreen 分类展示
+        if (status === 429) {
+          err.code = 'AI_RATE_LIMITED';
+        } else if (status >= 500) {
+          err.code = 'AI_SERVER_ERROR';
+        } else {
+          err.code = 'AI_NETWORK_ERROR';
+        }
 
         // 可重试的服务端/限流错误，且还有重试次数时重试
         if (!skipRetry && RETRYABLE_STATUSES.has(status) && attempt <= maxRetries) {
@@ -251,6 +259,18 @@ async function fetchWithRetry(url, body, apiKey, opts = {}) {
         console.warn(`[ai-service] ${error.name || 'NetworkError'}，${delay}ms 后第 ${attempt} 次重试...`);
         await sleep(delay);
         continue;
+      }
+      // 所有重试耗尽后，设置错误码后抛出
+      if (!error.code) {
+        if (error.name === 'AbortError') {
+          error.code = 'AI_NETWORK_ERROR';
+        } else if (error.httpStatus === 429) {
+          error.code = 'AI_RATE_LIMITED';
+        } else if (error.httpStatus >= 500) {
+          error.code = 'AI_SERVER_ERROR';
+        } else {
+          error.code = 'AI_NETWORK_ERROR';
+        }
       }
       throw error;
     } finally {
