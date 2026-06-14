@@ -28,6 +28,10 @@ jobs:
             cd ios && pod install && cd ..
           fi
 
+      - name: Install Expo packages
+        run: |
+          npx expo install expo-notifications
+
       - name: Run Expo Prebuild
         run: |
           npx expo prebuild --platform ios --clean
