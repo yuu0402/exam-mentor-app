@@ -53,7 +53,7 @@ const linking = {
       },
       MeTab: {
         screens: {
-          Profile: 'profile',
+          ProfileMain: 'profile',
           Settings: 'settings',
           ParentBinding: 'parent-binding',
         },
