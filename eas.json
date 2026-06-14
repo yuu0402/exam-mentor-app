@@ -14,6 +14,13 @@
         "credentialsSource": "local"
       }
     },
+    "device": {
+      "distribution": "internal",
+      "ios": {
+        "simulator": false,
+        "credentialsSource": "remote"
+      }
+    },
     "production": {
       "ios": {
         "autoIncrement": true
