@@ -69,7 +69,18 @@ jobs:
           cd ios
           WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" -type d 2>/dev/null | head -1)
           echo "Building workspace: $WORKSPACE"
-          xcodebuild -workspace "$WORKSPACE" -scheme zhongkao-mentor \
+          # Extract actual scheme name from .xcscheme file
+          SCHEME_FILE=$(find . -name "*.xcscheme" -type f 2>/dev/null | head -1)
+          echo "Scheme file: $SCHEME_FILE"
+          SCHEME_NAME=$(grep -o 'name="[^"]*"' "$SCHEME_FILE" 2>/dev/null | head -1 | sed 's/name="\([^"]*\)"/\1/')
+          echo "Detected scheme name: $SCHEME_NAME"
+          xcodebuild -workspace "$WORKSPACE" -scheme "$SCHEME_NAME" \
+            -configuration Release \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            -archivePath ../build/app.xcarchive \
+            archive
             -configuration Release \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
