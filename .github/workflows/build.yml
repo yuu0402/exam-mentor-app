@@ -42,7 +42,14 @@ jobs:
           cd ios
           WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" -type d 2>/dev/null | head -1)
           echo "Workspace: $WORKSPACE"
-          xcodebuild -workspace "$WORKSPACE" -list
+          xcodebuild -workspace "$WORKSPACE" -list 2>&1 | tee ../build/schemes.txt
+
+      - name: Upload schemes list
+        uses: actions/upload-artifact@v4
+        with:
+          name: schemes-list
+          path: build/schemes.txt
+          retention-days: 1
 
       - name: Build iOS App (unsigned)
         run: |
