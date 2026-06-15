@@ -35,11 +35,12 @@ jobs:
           if [ -f "ios/Podfile" ]; then
             cd ios && pod install && cd ..
           fi
+          ls -la ios/
 
       - name: Build iOS App (unsigned)
         run: |
           cd ios
-          WORKSPACE=$(ls *.xcworkspace 2>/dev/null | head -1)
+          WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" -type d 2>/dev/null | head -1)
           echo "Building workspace: $WORKSPACE"
           xcodebuild -workspace "$WORKSPACE" -scheme app \
             -configuration Release \
