@@ -42,7 +42,20 @@ jobs:
           cd ios
           WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" -type d 2>/dev/null | head -1)
           echo "Workspace: $WORKSPACE"
-          xcodebuild -workspace "$WORKSPACE" -list 2>&1 | tee ../build/schemes.txt
+          ls -la
+          # Find all .xcscheme files
+          SCHEMES=$(find . -name "*.xcscheme" -type f 2>/dev/null)
+          echo "Scheme files found:"
+          echo "$SCHEMES"
+          # Extract name from each scheme file
+          echo "$SCHEMES" | while read f; do
+            echo "=== Scheme: $f ==="
+            grep -o 'name="[^"]*"' "$f" 2>/dev/null | head -3
+          done
+          # Try xcodebuild with project flag
+          PROJ=$(find . -maxdepth 1 -name "*.xcodeproj" -type d 2>/dev/null | head -1)
+          echo "Project: $PROJ"
+          xcodebuild -project "$PROJ" -list 2>&1
 
       - name: Upload schemes list
         uses: actions/upload-artifact@v4
