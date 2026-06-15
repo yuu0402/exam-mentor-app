@@ -349,7 +349,7 @@ export default function StatsScreen({ navigation }) {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#007AFF" />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#007AFF" />}>
         {/* Tab 切换 */}
         <View style={styles.tabRow}>
           {TABS.map(tab => (

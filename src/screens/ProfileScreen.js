@@ -77,7 +77,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#007AFF" />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#007AFF" />}>
       {/* 头部信息卡片 */}
       <View style={styles.headerCard}>
         <View style={styles.avatarContainer}>
