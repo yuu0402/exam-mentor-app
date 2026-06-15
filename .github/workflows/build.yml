@@ -42,7 +42,7 @@ jobs:
           cd ios
           WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" -type d 2>/dev/null | head -1)
           echo "Building workspace: $WORKSPACE"
-          xcodebuild -workspace "$WORKSPACE" -scheme app \
+          xcodebuild -workspace "$WORKSPACE" -scheme zhongkao-mentor \
             -configuration Release \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
