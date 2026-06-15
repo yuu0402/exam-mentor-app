@@ -37,6 +37,13 @@ jobs:
           fi
           ls -la ios/
 
+      - name: List available schemes
+        run: |
+          cd ios
+          WORKSPACE=$(find . -maxdepth 1 -name "*.xcworkspace" -type d 2>/dev/null | head -1)
+          echo "Workspace: $WORKSPACE"
+          xcodebuild -workspace "$WORKSPACE" -list
+
       - name: Build iOS App (unsigned)
         run: |
           cd ios
