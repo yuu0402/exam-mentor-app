@@ -15,6 +15,7 @@ import {
   Alert,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
 import { APP_INFO } from '../config';
@@ -64,12 +65,19 @@ export default function SettingsScreen({ navigation }) {
         setQuarkCookieStatus('未配置');
       }
 
-      // 加载AI配置
-      const aiSettings = await AsyncStorage.getItem('@ai_settings');
+      // 加载AI配置（[安全升级] 优先从 Keychain 读取，降级 AsyncStorage）
+      let aiSettings = null;
+      try {
+        const secureVal = await SecureStore.getItemAsync('@secure_ai_key');
+        if (secureVal) aiSettings = JSON.parse(secureVal);
+      } catch (e) {}
+      if (!aiSettings) {
+        const asyncVal = await AsyncStorage.getItem('@ai_settings');
+        if (asyncVal) aiSettings = JSON.parse(asyncVal);
+      }
       if (aiSettings) {
-        const parsed = JSON.parse(aiSettings);
-        setAiApiKey(parsed.apiKey || '');
-        setAiModel(parsed.model || 'gpt-4');
+        setAiApiKey(aiSettings.apiKey || '');
+        setAiModel(aiSettings.model || 'gpt-4');
       }
 
       // 加载通知设置
@@ -119,7 +127,14 @@ export default function SettingsScreen({ navigation }) {
         apiKey: aiApiKey.trim(),
         model: aiModel.trim() || 'gpt-4',
       };
-      await AsyncStorage.setItem('@ai_settings', JSON.stringify(settings));
+      // [安全升级] 优先存 Keychain，降级 AsyncStorage 兼容旧数据
+      try {
+        await SecureStore.setItemAsync('@secure_ai_key', JSON.stringify(settings), {
+          keychainAccessible: SecureStore.KEYCHAIN_ACCESSIBLE.WHEN_UNLOCKED,
+        });
+      } catch (e) {
+        await AsyncStorage.setItem('@ai_settings', JSON.stringify(settings));
+      }
       Alert.alert('保存成功', 'AI配置已保存');
     } catch (e) {
       Alert.alert('错误', '保存AI配置时发生错误');
