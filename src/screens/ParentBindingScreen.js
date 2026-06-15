@@ -20,7 +20,7 @@ import { useApp } from '../context/AppContext';
 import { generateBindingCode, bindParent } from '../api/backend';
 
 export default function ParentBindingScreen({ navigation }) {
-  const { student } = useApp();
+  const { student, logout } = useApp();
 
   // [P2-2修复] 检查登录状态：未登录用户不允许访问家长绑定页面
   useEffect(() => {
@@ -30,7 +30,7 @@ export default function ParentBindingScreen({ navigation }) {
         '家长绑定需要先登录账号，是否前往登录？',
         [
           { text: '取消', style: 'cancel' },
-          { text: '去登录', onPress: () => navigation.replace('Login') },
+          { text: '去登录', onPress: () => logout() },
         ]
       );
     }
@@ -209,7 +209,7 @@ export default function ParentBindingScreen({ navigation }) {
           <TextInput
             style={styles.codeInput}
             placeholder="请输入家长端的绑定码..."
-            placeholderTextColor="#C7C7CC"
+            placeholderTextColor="#9E9E9E"
             value={manualCode}
             onChangeText={setManualCode}
             autoCapitalize="characters"
@@ -318,7 +318,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: '#636366',
     marginLeft: 6,
   },
   tabTextActive: {
@@ -386,7 +386,7 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: '#636366',
     marginHorizontal: 16,
   },
   codeInput: {
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   buttonDisabled: {
-    backgroundColor: '#C7C7CC',
+    backgroundColor: '#C8C8CD',
   },
   codeCard: {
     backgroundColor: '#fff',
@@ -421,7 +421,7 @@ const styles = StyleSheet.create({
   },
   codeLabel: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: '#636366',
     marginBottom: 8,
   },
   codeValue: {
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   },
   codeHint: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: '#636366',
   },
   modalOverlay: {
     flex: 1,
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
   },
   qrCodeText: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: '#636366',
     marginTop: 8,
   },
   bindUrlText: {
@@ -484,7 +484,7 @@ const styles = StyleSheet.create({
   },
   qrHint: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: '#636366',
     textAlign: 'center',
     lineHeight: 18,
   },
@@ -496,7 +496,7 @@ const styles = StyleSheet.create({
   },
   copyLabel: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: '#636366',
   },
   copyButton: {
     flexDirection: 'row',

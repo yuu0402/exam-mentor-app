@@ -5,7 +5,7 @@
  * @module LoginScreen
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -40,6 +40,10 @@ export default function LoginScreen() {
   const cooldownTimerRef = useRef(null);
   // 按钮防抖引用
   const buttonLockRef = useRef(false);
+  // 按钮防抖 timeout 引用
+  const buttonLockTimeoutRef = useRef(null);
+  // 自动聚焦 timeout 引用
+  const autoFocusTimeoutRef = useRef(null);
   // 加载状态
   const [loading, setLoading] = useState(false);
   // 验证码输入框引用（用于聚焦）
@@ -50,6 +54,12 @@ export default function LoginScreen() {
     return () => {
       if (cooldownTimerRef.current) {
         clearInterval(cooldownTimerRef.current);
+      }
+      if (buttonLockTimeoutRef.current) {
+        clearTimeout(buttonLockTimeoutRef.current);
+      }
+      if (autoFocusTimeoutRef.current) {
+        clearTimeout(autoFocusTimeoutRef.current);
       }
     };
   }, []);
@@ -92,7 +102,7 @@ export default function LoginScreen() {
     }
 
     buttonLockRef.current = true;
-    setTimeout(() => { buttonLockRef.current = false; }, BUTTON_LOCK_MS);
+    buttonLockTimeoutRef.current = setTimeout(() => { buttonLockRef.current = false; }, BUTTON_LOCK_MS);
 
     Keyboard.dismiss();
     setLoading(true);
@@ -102,7 +112,7 @@ export default function LoginScreen() {
       startCooldown();
       Alert.alert('发送成功', '验证码已发送至您的手机，请查收');
       // 自动聚焦验证码输入框
-      setTimeout(() => {
+      autoFocusTimeoutRef.current = setTimeout(() => {
         codeInputRef.current?.focus();
       }, 100);
     } catch (error) {
@@ -135,7 +145,7 @@ export default function LoginScreen() {
     }
 
     buttonLockRef.current = true;
-    setTimeout(() => { buttonLockRef.current = false; }, BUTTON_LOCK_MS);
+    buttonLockTimeoutRef.current = setTimeout(() => { buttonLockRef.current = false; }, BUTTON_LOCK_MS);
 
     Keyboard.dismiss();
     setLoading(true);
@@ -167,11 +177,11 @@ export default function LoginScreen() {
   // 渲染手机号输入框
   const renderPhoneInput = () => (
     <View style={styles.inputContainer}>
-      <Icon name="phone" size={20} color="#8E8E93" style={styles.inputIcon} />
+      <Icon name="phone" size={20} color="#636366" style={styles.inputIcon} />
       <TextInput
         style={styles.input}
         placeholder="请输入手机号"
-        placeholderTextColor="#C7C7CC"
+        placeholderTextColor="#9E9E9E"
         value={phone}
         onChangeText={setPhone}
         keyboardType="phone-pad"
@@ -185,12 +195,12 @@ export default function LoginScreen() {
   // 渲染验证码输入框
   const renderCodeInput = () => (
     <View style={styles.inputContainer}>
-      <Icon name="lock" size={20} color="#8E8E93" style={styles.inputIcon} />
+      <Icon name="lock" size={20} color="#636366" style={styles.inputIcon} />
       <TextInput
         ref={codeInputRef}
         style={[styles.input, styles.codeInput]}
         placeholder="请输入6位验证码"
-        placeholderTextColor="#C7C7CC"
+        placeholderTextColor="#9E9E9E"
         value={code}
         onChangeText={setCode}
         keyboardType="number-pad"
@@ -290,7 +300,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15,
-    color: '#8E8E93',
+    color: '#636366',
   },
   form: {
     width: '100%',
@@ -337,7 +347,7 @@ const styles = StyleSheet.create({
     color: '#007AFF',
   },
   sendCodeTextDisabled: {
-    color: '#8E8E93',
+    color: '#636366',
   },
   loginButton: {
     backgroundColor: '#007AFF',
@@ -348,7 +358,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   loginButtonDisabled: {
-    backgroundColor: '#B0D4FF',
+    backgroundColor: '#C8C8CD',
   },
   loginButtonText: {
     fontSize: 17,
@@ -361,7 +371,7 @@ const styles = StyleSheet.create({
   },
   footerText: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: '#636366',
     textAlign: 'center',
   },
   link: {

@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useReducer, useEffect, useMemo, useRef } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useMemo, useRef, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { STORAGE_KEYS, QUARK_CONFIG } from '../config';
+import { removeAuthToken, removeQuarkCookie, removeAIKey, getAuthToken } from '../utils/secure-storage';
 import { scheduleReview, getTodayReviews, markReviewed, getReviewStats } from '../utils/study-plan-generator';
 import { checkIn as backendCheckIn, getTodayTasks, completeTask as backendCompleteTask, startTask as backendStartTask, submitDiagnosis as backendSubmitDiagnosis, getWrongQuestions as backendGetWrongQuestions, logout as backendLogout, login as backendLogin, register as backendRegister, getMe as backendGetMe, sendCode as backendSendCode, addAuthListener } from '../api/backend';
 import { checkNetworkStatus } from '../utils/network';
@@ -402,9 +403,174 @@ export function AppProvider({ children }) {
   entertainmentRef.current = state.entertainment;
 
   // 初始化加载数据
+  const loadInitialData = useCallback(async () => {
+    try {
+      dispatch({ type: ActionTypes.SET_LOADING, payload: true });
+
+      // 先检查认证状态
+      await checkAuth();
+
+      // 并行加载所有数据
+      const [
+        studentData,
+        studyPlanData,
+        diagnosisData,
+        quarkCookieData,
+        todayData,
+        entertainmentData,
+        entertainmentStateData,
+        scheduleData,
+        testScoresData,
+        logsData,
+        wrongAnswersData,
+        checkinData,
+        timerStateData,
+      ] = await Promise.all([
+        AsyncStorage.getItem(STORAGE_KEYS.STUDENT_INFO),
+        AsyncStorage.getItem(STORAGE_KEYS.STUDY_PLAN),
+        AsyncStorage.getItem(STORAGE_KEYS.DIAGNOSIS_RESULT),
+        AsyncStorage.getItem(STORAGE_KEYS.QUARK_COOKIE),
+        AsyncStorage.getItem(STORAGE_KEYS.STUDY_LOGS),
+        AsyncStorage.getItem(STORAGE_KEYS.ENTERTAINMENT_LOGS),
+        AsyncStorage.getItem(STORAGE_KEYS.ENTERTAINMENT_STATE),
+        AsyncStorage.getItem(STORAGE_KEYS.SLEEP_LOGS),
+        AsyncStorage.getItem(STORAGE_KEYS.TEST_SCORES),
+        AsyncStorage.getItem(STORAGE_KEYS.REWARD_PUNISHMENT),
+        AsyncStorage.getItem('@wrong_answers'),
+        AsyncStorage.getItem('@checkin'),
+        AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE),
+        AsyncStorage.getItem(STORAGE_KEYS.TIMER_STATE),
+      ]);
+
+      // 更新状态
+      if (studentData) {
+        dispatch({ type: ActionTypes.SET_STUDENT, payload: JSON.parse(studentData) });
+      }
+      if (studyPlanData) {
+        dispatch({ type: ActionTypes.SET_STUDY_PLAN, payload: JSON.parse(studyPlanData) });
+      }
+      if (diagnosisData) {
+        dispatch({ type: ActionTypes.SET_DIAGNOSIS_RESULT, payload: JSON.parse(diagnosisData) });
+      }
+      if (quarkCookieData) {
+        try {
+          const cookieInfo = JSON.parse(quarkCookieData);
+          // 新统一格式: { cookie, expiry, savedAt }
+          if (cookieInfo && typeof cookieInfo.cookie === 'string') {
+            dispatch({
+              type: ActionTypes.SET_QUARK_COOKIE,
+              payload: {
+                cookie: cookieInfo.cookie,
+                expiry: cookieInfo.expiry || null,
+              },
+            });
+          }
+        } catch (e) {
+          // 旧版纯字符串 Cookie（向后兼容）
+          const trimmed = quarkCookieData.trim();
+          if (trimmed && !trimmed.startsWith('{')) {
+            dispatch({
+              type: ActionTypes.SET_QUARK_COOKIE,
+              payload: { cookie: trimmed, expiry: null },
+            });
+          }
+        }
+      }
+
+      // 加载错题本
+      if (wrongAnswersData) {
+        dispatch({ type: ActionTypes.SET_WRONG_ANSWERS, payload: JSON.parse(wrongAnswersData) });
+      }
+      // 加载打卡数据
+      if (checkinData) {
+        const ci = JSON.parse(checkinData);
+        dispatch({ type: ActionTypes.CHECK_IN, payload: { date: ci.date, streak: ci.streak || 1 } });
+      }
+      // 从 STUDY_LOGS 恢复 today.studyTime
+      if (todayData) {
+        try {
+          const logs = JSON.parse(todayData);
+          const todayStr = new Date().toISOString().split('T')[0];
+          const todayMinutes = logs
+            .filter(log => log.date && log.date.startsWith(todayStr))
+            .reduce((sum, log) => sum + (log.minutes || 0), 0);
+          if (todayMinutes > 0) {
+            dispatch({ type: ActionTypes.SET_TODAY, payload: { studyTime: todayMinutes } });
+          }
+        } catch (e) {}
+      }
+
+
+      // 恢复 entertainment 状态（used/bonus/penalty），仅同日数据有效
+      if (entertainmentStateData) {
+        try {
+          const es = JSON.parse(entertainmentStateData);
+          const todayStr = new Date().toISOString().split('T')[0];
+          if (es.date === todayStr) {
+            dispatch({
+              type: ActionTypes.UPDATE_ENTERTAINMENT,
+              payload: {
+                used: es.used || 0,
+                bonus: es.bonus || 0,
+                penalty: es.penalty || 0,
+              },
+            });
+          }
+          // 跨天数据不恢复（RESET_TODAY 已将 used 归零）
+        } catch (e) {}
+      }
+      // 恢复未完成的计时器会话
+      if (timerStateData) {
+        try {
+          const savedTimer = JSON.parse(timerStateData);
+          if (savedTimer.active) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (savedTimer.date && savedTimer.date !== todayStr) {
+              // 跨天旧会话，清除
+              await AsyncStorage.removeItem(STORAGE_KEYS.TIMER_STATE);
+            } else if (savedTimer.paused) {
+              // 暂停状态，原样恢复
+              dispatch({ type: ActionTypes.RESTORE_TIMER, payload: savedTimer });
+            } else {
+              // 非暂停（计时中），补算已流逝时间后恢复
+              const now = Date.now();
+              const savedStart = savedTimer.startTime ? new Date(savedTimer.startTime).getTime() : now;
+              const additional = Math.floor((now - savedStart) / 60000);
+              const totalAcc = (savedTimer.accumulatedMinutes || 0) + Math.max(0, additional);
+              dispatch({
+                type: ActionTypes.RESTORE_TIMER,
+                payload: {
+                  active: true,
+                  paused: false,
+                  pausedAt: null,
+                  startTime: new Date(now - totalAcc * 60000).toISOString(),
+                  subject: savedTimer.subject || null,
+                  accumulatedMinutes: totalAcc,
+                },
+              });
+            }
+          }
+        } catch (e) {
+          await AsyncStorage.removeItem(STORAGE_KEYS.TIMER_STATE).catch(() => {});
+        }
+      }
+
+      // 加载引导完成状态：有学生数据或标记即为已完成
+      const onboarded = await AsyncStorage.getItem(STORAGE_KEYS.ONBOARDING_COMPLETE);
+      if (studentData || onboarded) {
+        dispatch({ type: ActionTypes.SET_ONBOARDED, payload: true });
+      }
+
+      dispatch({ type: ActionTypes.SET_LOADING, payload: false });
+    } catch (error) {
+      console.error('加载数据失败:', error);
+      dispatch({ type: ActionTypes.SET_ERROR, payload: '加载数据失败' });
+    }
+  }, []);
+
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, [loadInitialData]);
 
   // 检查日期变化
   useEffect(() => {
@@ -453,15 +619,22 @@ export function AppProvider({ children }) {
     const handleAuthEvent = (type) => {
       if (type === 'backend:unauthorized') {
         dispatch({ type: ActionTypes.LOGOUT });
+        // 清除 SecureStore 中的敏感数据
+        removeAuthToken().catch(() => {});
+        removeQuarkCookie().catch(() => {});
+        removeAIKey().catch(() => {});
         // 清除所有本地用户数据（保留 AI 配置和通知设置由 SettingsScreen logout 处理）
         AsyncStorage.multiRemove([
           STORAGE_KEYS.STUDENT,
           STORAGE_KEYS.ONBOARDING,
           STORAGE_KEYS.AUTH_TOKEN,
+          STORAGE_KEYS.AUTH_USER,
           STORAGE_KEYS.NAV_STATE,
           STORAGE_KEYS.STUDY_PLAN,
           STORAGE_KEYS.DIAGNOSIS_RESULT,
           STORAGE_KEYS.TODAY_TASKS,
+          STORAGE_KEYS.QUARK_COOKIE,
+          STORAGE_KEYS.AI_SETTINGS,
         ]).catch(() => {});
       }
     };
@@ -674,7 +847,7 @@ export function AppProvider({ children }) {
   };
 
   // 保存学生信息
-  const saveStudent = async (studentInfo) => {
+  const saveStudent = useCallback(async (studentInfo) => {
     try {
       await AsyncStorage.setItem(
         STORAGE_KEYS.STUDENT_INFO,
@@ -686,10 +859,10 @@ export function AppProvider({ children }) {
       console.error('保存学生信息失败:', error);
       return false;
     }
-  };
+  }, []);
 
   // 完成引导
-  const completeOnboarding = async () => {
+  const completeOnboarding = useCallback(async () => {
     try {
       await AsyncStorage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, 'true');
       dispatch({ type: ActionTypes.SET_ONBOARDED, payload: true });
@@ -698,11 +871,11 @@ export function AppProvider({ children }) {
       console.error('保存引导状态失败:', error);
       return false;
     }
-  };
+  }, []);
 
   // 保存学习计划
   // [P0] 替换为先调用 backend.getTodayTasks() 获取真实任务，再 dispatch
-  const saveStudyPlan = async (plan) => {
+  const saveStudyPlan = useCallback(async (plan) => {
     try {
       await AsyncStorage.setItem(
         STORAGE_KEYS.STUDY_PLAN,
@@ -723,11 +896,11 @@ export function AppProvider({ children }) {
       console.error('保存学习计划失败:', error);
       return false;
     }
-  };
+  }, []);
 
   // 保存诊断结果
   // [P0] 替换为调用 backend.submitDiagnosis()，用返回结果更新本地状态
-  const saveDiagnosisResult = async (sessionId, answers) => {
+  const saveDiagnosisResult = useCallback(async (sessionId, answers) => {
     try {
       const result = await backendSubmitDiagnosis(sessionId, answers);
       await AsyncStorage.setItem(
@@ -740,10 +913,10 @@ export function AppProvider({ children }) {
       console.error('提交诊断结果失败:', error);
       return null;
     }
-  };
+  }, []);
 
   // 保存夸克Cookie（格式与 cookie-manager 统一: { cookie, expiry, savedAt }）
-  const saveQuarkCookie = async (cookie) => {
+  const saveQuarkCookie = useCallback(async (cookie) => {
     try {
       const now = Date.now();
       const expiry = new Date(now + QUARK_CONFIG.cookieExpiryDays * 24 * 60 * 60 * 1000);
@@ -769,7 +942,7 @@ export function AppProvider({ children }) {
       console.error('保存夸克Cookie失败:', error);
       return false;
     }
-  };
+  }, []);
 
   // 清理过期日志（保留最近 90 天）
   const KEEP_LOG_DAYS = 90;
@@ -782,7 +955,7 @@ export function AppProvider({ children }) {
   };
 
   // 记录学习时间
-  const logStudyTime = async (minutes, subject) => {
+  const logStudyTime = useCallback(async (minutes, subject) => {
     // 读取已有日志，清理过期记录后再追加
     const log = {
       date: new Date().toISOString(),
@@ -799,11 +972,11 @@ export function AppProvider({ children }) {
     } catch (error) {
       console.error('记录学习时间失败:', error);
     }
-  };
+  }, []);
 
   // 记录娱乐时间
   // [P1-3修复] 使用函数式更新避免 stale closure：entertainment.used 连续调用时可能不同步
-  const logEntertainmentTime = async (minutes, type) => {
+  const logEntertainmentTime = useCallback(async (minutes, type) => {
     dispatch({ type: ActionTypes.UPDATE_TODAY_ENTERTAINMENT, payload: minutes });
     // 递增 entertainment.used（累计已用娱乐时间），防止重启后归零被反复使用
     // 使用函数式更新确保基于最新状态计算
@@ -848,15 +1021,15 @@ export function AppProvider({ children }) {
     } catch (error) {
       console.error('记录娱乐时间失败:', error);
     }
-  };
+  }, []);
 
   // 完成任务
-  const completeTask = async (taskId) => {
+  const completeTask = useCallback(async (taskId) => {
     dispatch({ type: ActionTypes.ADD_COMPLETED_TASK, payload: taskId });
-  };
+  }, []);
 
   // 记录成绩
-  const addTestScore = async (score) => {
+  const addTestScore = useCallback(async (score) => {
     dispatch({ type: ActionTypes.ADD_TEST_SCORE, payload: score });
 
     try {
@@ -867,10 +1040,10 @@ export function AppProvider({ children }) {
     } catch (error) {
       console.error('记录成绩失败:', error);
     }
-  };
+  }, []);
 
   // 更新作息时间
-  const updateSchedule = async (scheduleData) => {
+  const updateSchedule = useCallback(async (scheduleData) => {
     try {
       await AsyncStorage.setItem(
         STORAGE_KEYS.SLEEP_LOGS,
@@ -880,13 +1053,13 @@ export function AppProvider({ children }) {
     } catch (error) {
       console.error('更新作息失败:', error);
     }
-  };
+  }, []);
 
   // ===== 计时器 =====
   const timerLockRef = useRef(false);
 
   // [P0] 替换为 startTimer 时调用 backend.startTask(taskId)
-  const startTimer = async (subject, taskId) => {
+  const startTimer = useCallback(async (subject, taskId) => {
     if (timerLockRef.current || state.timer.active) return;
     timerLockRef.current = true;
     try {
@@ -902,10 +1075,10 @@ export function AppProvider({ children }) {
     } finally {
       timerLockRef.current = false;
     }
-  };
+  }, []);
 
   // [P0] 替换为 stopTimer 时调用 backend.completeTask(taskId)
-  const stopTimer = async (minutes, taskId) => {
+  const stopTimer = useCallback(async (minutes, taskId) => {
     if (timerLockRef.current || !state.timer.active) return;
     timerLockRef.current = true;
     try {
@@ -940,9 +1113,9 @@ export function AppProvider({ children }) {
     } finally {
       timerLockRef.current = false;
     }
-  };
+  }, []);
 
-  const pauseTimer = () => {
+  const pauseTimer = useCallback(() => {
     if (timerLockRef.current || !state.timer.active || state.timer.paused) return;
     timerLockRef.current = true;
     try {
@@ -950,9 +1123,9 @@ export function AppProvider({ children }) {
     } finally {
       timerLockRef.current = false;
     }
-  };
+  }, []);
 
-  const resumeTimer = () => {
+  const resumeTimer = useCallback(() => {
     if (timerLockRef.current || !state.timer.paused) return;
     timerLockRef.current = true;
     try {
@@ -960,19 +1133,19 @@ export function AppProvider({ children }) {
     } finally {
       timerLockRef.current = false;
     }
-  };
+  }, []);
 
-  const dismissCheckInToast = () => {
+  const dismissCheckInToast = useCallback(() => {
     dispatch({ type: ActionTypes.HIDE_CHECK_IN_TOAST });
-  };
+  }, []);
 
-  const dismissStudySummary = () => {
+  const dismissStudySummary = useCallback(() => {
     dispatch({ type: ActionTypes.HIDE_STUDY_SUMMARY });
-  };
+  }, []);
 
   // ===== 打卡 =====
   // [P0] 替换为 backend.checkIn() API
-  const checkIn = async () => {
+  const checkIn = useCallback(async () => {
     const today = new Date().toISOString().split('T')[0];
     if (state.today.checkInDate === today) return;
     try {
@@ -988,11 +1161,11 @@ export function AppProvider({ children }) {
         await AsyncStorage.setItem('@checkin', JSON.stringify({ date: today, streak: newStreak, total: (state.today.totalCheckIns || 0) + 1 }));
       } catch(e2) {}
     }
-  };
+  }, []);
 
   // ===== 错题本 =====
   // [P0] 优先使用 backend.getWrongQuestions() 拉取，后端自动处理错题记录（见 diagnostic_session.py），本地缓存保留
-  const addWrongAnswer = async (item) => {
+  const addWrongAnswer = useCallback(async (item) => {
     dispatch({ type: ActionTypes.ADD_WRONG_ANSWER, payload: item });
     try {
       const existing = await AsyncStorage.getItem('@wrong_answers');
@@ -1026,9 +1199,9 @@ export function AppProvider({ children }) {
         console.warn('backend.getWrongQuestions 失败，使用本地缓存:', apiErr);
       }
     } catch(e) {}
-  };
+  }, []);
 
-  const markWrongAnswerReviewed = async (wrongAnswerId, remembered) => {
+  const markWrongAnswerReviewed = useCallback(async (wrongAnswerId, remembered) => {
     dispatch({ type: ActionTypes.MARK_REVIEWED, payload: { id: wrongAnswerId, remembered } });
     try {
       const existing = await AsyncStorage.getItem('@wrong_answers');
@@ -1041,9 +1214,9 @@ export function AppProvider({ children }) {
       });
       await AsyncStorage.setItem('@wrong_answers', JSON.stringify(updated));
     } catch(e) {}
-  };
+  }, []);
 
-  const updateWrongAnswer = async (wrongAnswerId, updates) => {
+  const updateWrongAnswer = useCallback(async (wrongAnswerId, updates) => {
     dispatch({ type: ActionTypes.UPDATE_WRONG_ANSWER, payload: { id: wrongAnswerId, ...updates } });
     try {
       const existing = await AsyncStorage.getItem('@wrong_answers');
@@ -1056,19 +1229,19 @@ export function AppProvider({ children }) {
       });
       await AsyncStorage.setItem('@wrong_answers', JSON.stringify(updated));
     } catch(e) {}
-  };
+  }, []);
 
-  const loadWrongAnswers = async () => {
+  const loadWrongAnswers = useCallback(async () => {
     try {
       const data = await AsyncStorage.getItem('@wrong_answers');
       if (data) {
         dispatch({ type: ActionTypes.SET_WRONG_ANSWERS, payload: JSON.parse(data) });
       }
     } catch(e) {}
-  };
+  }, []);
 
   // 记录奖惩
-  const addRewardPunishment = async (record) => {
+  const addRewardPunishment = useCallback(async (record) => {
     dispatch({ type: ActionTypes.ADD_REWARD_PUNISHMENT, payload: record });
 
     try {
@@ -1082,7 +1255,7 @@ export function AppProvider({ children }) {
     } catch (error) {
       console.error('记录奖惩失败:', error);
     }
-  };
+  }, []);
 
   // 计算剩余娱乐时间（useMemo 避免每次 render 重复计算）
   const remainingEntertainmentTime = useMemo(() => {
@@ -1108,20 +1281,30 @@ export function AppProvider({ children }) {
   }, [state.wrongAnswers]);
 
   // 退出登录
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
       // 调用后端登出API
       await backendLogout();
     } catch (e) {
       console.warn('后端登出失败:', e);
     }
-    // [P2-3修复] 清除所有本地存储的敏感数据：token、用户信息、夸克Cookie、AI设置
+    // 清除 SecureStore 中的敏感数据
+    await removeAuthToken().catch(() => {});
+    await removeQuarkCookie().catch(() => {});
+    await removeAIKey().catch(() => {});
+    // 清除所有本地存储的敏感数据：token、用户信息、夸克Cookie、AI设置
     try {
       await AsyncStorage.multiRemove([
         STORAGE_KEYS.AUTH_TOKEN,
         STORAGE_KEYS.AUTH_USER,
         STORAGE_KEYS.QUARK_COOKIE,
         STORAGE_KEYS.AI_SETTINGS,
+        STORAGE_KEYS.STUDENT_INFO,
+        STORAGE_KEYS.ONBOARDING_COMPLETE,
+        STORAGE_KEYS.NAV_STATE,
+        STORAGE_KEYS.STUDY_PLAN,
+        STORAGE_KEYS.DIAGNOSIS_RESULT,
+        STORAGE_KEYS.TODAY_TASKS,
       ]);
     } catch (e) {
       console.warn('清除本地存储失败:', e);
@@ -1130,14 +1313,14 @@ export function AppProvider({ children }) {
     dispatch({ type: ActionTypes.SET_LOGGED_IN, payload: false });
     dispatch({ type: ActionTypes.SET_TOKEN, payload: null });
     dispatch({ type: ActionTypes.SET_STUDENT, payload: null });
-    // [P2-3修复] 清除夸克Cookie状态（使用SET_QUARK_COOKIE将cookie和expiry设为null）
+    // 清除夸克Cookie状态（使用SET_QUARK_COOKIE将cookie和expiry设为null）
     dispatch({ type: ActionTypes.SET_QUARK_COOKIE, payload: { cookie: null, expiry: null } });
-  };
+  }, []);
 
   // 检查认证状态（启动时调用）
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async () => {
     try {
-      const token = await AsyncStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+      const token = await getAuthToken();
       if (!token) {
         dispatch({ type: ActionTypes.SET_LOGGED_IN, payload: false });
         return false;
@@ -1150,16 +1333,15 @@ export function AppProvider({ children }) {
       return true;
     } catch (e) {
       // token 无效或过期，清除
-      await AsyncStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN).catch(() => {});
-      await AsyncStorage.removeItem(STORAGE_KEYS.AUTH_USER).catch(() => {});
+      await removeAuthToken().catch(() => {});
       dispatch({ type: ActionTypes.SET_LOGGED_IN, payload: false });
       dispatch({ type: ActionTypes.SET_TOKEN, payload: null });
       return false;
     }
-  };
+  }, []);
 
   // 登录（手机号 + 验证码）
-  const login = async (phone, code) => {
+  const login = useCallback(async (phone, code) => {
     // 先尝试登录，失败则尝试注册
     try {
       const result = await backendLogin({ phone, code });
@@ -1179,7 +1361,7 @@ export function AppProvider({ children }) {
       dispatch({ type: ActionTypes.SET_STUDENT, payload: regResult.user });
       return regResult;
     }
-  };
+  }, []);
 
   // [P1-1修复] 使用 useMemo 包裹整个 contextValue，避免每次 render 新建对象导致所有 consumer 重渲染
   // 依赖数组包含所有会影响 context value 的 state 和方法

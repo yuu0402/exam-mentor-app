@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 0.5,
     borderBottomColor: '#E5E5EA',
   },
-  backBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
+  backBtn: { width: 44, height: 44, justifyContent: 'center', alignItems: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#000' },
 
   content: { flex: 1, padding: 16 },
@@ -460,14 +460,14 @@ const styles = StyleSheet.create({
   tabRow: { flexDirection: 'row', backgroundColor: '#fff', borderRadius: 12, padding: 4, marginBottom: 16 },
   tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
   tabActive: { backgroundColor: '#007AFF' },
-  tabText: { fontSize: 14, fontWeight: '600', color: '#8E8E93' },
+  tabText: { fontSize: 14, fontWeight: '600', color: '#636366' },
   tabTextActive: { color: '#fff' },
 
   // Stats Row
   statsRow: { flexDirection: 'row', marginBottom: 16, gap: 10 },
   statCard: { flex: 1, backgroundColor: '#fff', borderRadius: 14, padding: 14, alignItems: 'center', shadowColor: '#000', shadowOffset: { w: 0, h: 2 }, shadowOpacity: 0.04, shadowRadius: 8 },
   statValue: { fontSize: 18, fontWeight: '800', color: '#007AFF' },
-  statLabel: { fontSize: 11, color: '#8E8E93', marginTop: 4 },
+  statLabel: { fontSize: 11, color: '#636366', marginTop: 4 },
 
   // Card
   card: { backgroundColor: '#fff', borderRadius: 16, padding: 18, marginBottom: 16, shadowColor: '#000', shadowOffset: { w: 0, h: 2 }, shadowOpacity: 0.04, shadowRadius: 8 },
@@ -479,8 +479,8 @@ const styles = StyleSheet.create({
   barColumn: { flex: 1, alignItems: 'center', marginHorizontal: 2 },
   barWrapper: { width: 24, height: 100, backgroundColor: '#F2F2F7', borderRadius: 6, justifyContent: 'flex-end', overflow: 'hidden' },
   barFill: { backgroundColor: '#007AFF', borderRadius: 6, width: '100%' },
-  barValue: { fontSize: 10, color: '#8E8E93', marginTop: 4 },
-  barLabel: { fontSize: 11, color: '#8E8E93', marginTop: 2 },
+  barValue: { fontSize: 10, color: '#636366', marginTop: 4 },
+  barLabel: { fontSize: 11, color: '#636366', marginTop: 2 },
 
   // Pie Chart
   pieSection: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-around' },
@@ -503,7 +503,7 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   legendDot: { width: 10, height: 10, borderRadius: 5, marginRight: 8 },
   legendLabel: { fontSize: 13, color: '#000', flex: 1 },
-  legendValue: { fontSize: 12, color: '#8E8E93', marginRight: 6 },
+  legendValue: { fontSize: 12, color: '#636366', marginRight: 6 },
   legendPercent: { fontSize: 12, fontWeight: '700', color: '#007AFF', width: 36, textAlign: 'right' },
 
   // Calendar
@@ -511,20 +511,20 @@ const styles = StyleSheet.create({
   legendRow: { flexDirection: 'row', alignItems: 'center' },
   calendarContainer: { alignItems: 'center' },
   calendarWeekdayRow: { flexDirection: 'row', marginBottom: 6 },
-  calendarWeekday: { width: 36, textAlign: 'center', fontSize: 11, color: '#8E8E93' },
+  calendarWeekday: { width: 36, textAlign: 'center', fontSize: 11, color: '#636366' },
   calendarWeekRow: { flexDirection: 'row', marginBottom: 4 },
   calendarDay: { width: 36, height: 36, borderRadius: 8, justifyContent: 'center', alignItems: 'center', marginHorizontal: 2 },
   calendarDayChecked: { backgroundColor: '#34C759' },
   calendarDayUnchecked: { backgroundColor: '#E5E5EA' },
   calendarDayText: { fontSize: 12, fontWeight: '600' },
   calendarDayTextChecked: { color: '#fff' },
-  calendarDayTextUnchecked: { color: '#8E8E93' },
+  calendarDayTextUnchecked: { color: '#636366' },
 
   // Empty State
   emptyState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 30 },
-  emptyText: { fontSize: 14, color: '#8E8E93', marginTop: 12 },
+  emptyText: { fontSize: 14, color: '#636366', marginTop: 12 },
 
   // Loading
   loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2F2F7' },
-  loadingText: { marginTop: 12, fontSize: 14, color: '#8E8E93' },
+  loadingText: { marginTop: 12, fontSize: 14, color: '#636366' },
 });

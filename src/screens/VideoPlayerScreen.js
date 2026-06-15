@@ -223,7 +223,7 @@ export default function VideoPlayerScreen({ navigation, route }) {
         <Icon name="error-outline" size={55} color="#FF3B30" />
         <Text style={[styles.statusText, { color: '#FF3B30', marginTop: 12 }]}>{error}</Text>
         <TouchableOpacity style={styles.btn} onPress={loadVideo}><Text style={styles.btnText}>重试</Text></TouchableOpacity>
-        <TouchableOpacity style={styles.btnOutline} onPress={() => navigation.goBack()}><Text style={styles.btnOutlineText}>返回</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.btnOutline} onPress={() => { if (navigation.canGoBack()) { navigation.goBack(); } else { navigation.navigate('Today'); } }}><Text style={styles.btnOutlineText}>返回</Text></TouchableOpacity>
       </View>
     );
   }
@@ -232,9 +232,9 @@ export default function VideoPlayerScreen({ navigation, route }) {
   if (!videoUrl) {
     return (
       <View style={styles.center}>
-        <Icon name="videocam-off" size={55} color="#8E8E93" />
+        <Icon name="videocam-off" size={55} color="#636366" />
         <Text style={styles.statusText}>无可播放的视频</Text>
-        <TouchableOpacity style={styles.btnOutline} onPress={() => navigation.goBack()}><Text style={styles.btnOutlineText}>返回</Text></TouchableOpacity>
+        <TouchableOpacity style={styles.btnOutline} onPress={() => { if (navigation.canGoBack()) { navigation.goBack(); } else { navigation.navigate('Today'); } }}><Text style={styles.btnOutlineText}>返回</Text></TouchableOpacity>
       </View>
     );
   }
@@ -355,8 +355,8 @@ export default function VideoPlayerScreen({ navigation, route }) {
                     navigation.goBack();
                   }}
                 >
-                  <Icon name="arrow-back" size={16} color="#8E8E93" />
-                  <Text style={[styles.compActionText, { color: '#8E8E93' }]}>返回</Text>
+                  <Icon name="arrow-back" size={16} color="#636366" />
+                  <Text style={[styles.compActionText, { color: '#636366' }]}>返回</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -442,11 +442,11 @@ export default function VideoPlayerScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#000' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#000', padding: 30 },
-  statusText: { color: '#8E8E93', fontSize: 15, marginTop: 12, textAlign: 'center' },
+  statusText: { color: '#636366', fontSize: 15, marginTop: 12, textAlign: 'center' },
   btn: { backgroundColor: '#007AFF', borderRadius: 20, paddingHorizontal: 28, paddingVertical: 12, marginTop: 20 },
   btnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   btnOutline: { borderWidth: 1, borderColor: '#8E8E93', borderRadius: 20, paddingHorizontal: 28, paddingVertical: 12, marginTop: 10 },
-  btnOutlineText: { color: '#8E8E93', fontSize: 15 },
+  btnOutlineText: { color: '#636366', fontSize: 15 },
 
   videoArea: { width, height: height * 0.45, justifyContent: 'center', alignItems: 'center' },
   video: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },

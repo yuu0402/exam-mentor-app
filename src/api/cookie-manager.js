@@ -2,13 +2,13 @@
  * Cookie管理模块
  *
  * 负责夸克网盘Cookie的存储、读取、验证和生命周期管理。
- * 使用React Native的AsyncStorage进行持久化存储。
+ * 使用 SecureStore（iOS Keychain / Android Keystore）进行安全存储。
  *
  * @module cookie-manager
  */
 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { QUARK_CONFIG, STORAGE_KEYS } from '../config';
+import { setQuarkCookie, getQuarkCookie, removeQuarkCookie } from '../utils/secure-storage';
+import { QUARK_CONFIG } from '../config';
 
 /** 默认日志标签 */
 const TAG = '[CookieManager]';
@@ -47,14 +47,14 @@ export async function saveCookie(cookie) {
     const now = Date.now();
     const expiry = new Date(now + QUARK_CONFIG.cookieExpiryDays * 24 * 60 * 60 * 1000).toISOString();
 
-    // 统一存储格式：JSON { cookie, expiry, savedAt }（与 AppContext 保持一致）
-    const cookieInfo = JSON.stringify({
+    // 统一存储格式：{ cookie, expiry, savedAt }（与 AppContext 保持一致）
+    const cookieInfo = {
       cookie: trimmed,
       expiry,
       savedAt: now,
-    });
+    };
 
-    await AsyncStorage.setItem(STORAGE_KEYS.QUARK_COOKIE, cookieInfo);
+    await setQuarkCookie(cookieInfo);
 
     log('info', 'Cookie保存成功');
     return true;
@@ -77,25 +77,11 @@ export async function saveCookie(cookie) {
  */
 export async function getCookie() {
   try {
-    const stored = await AsyncStorage.getItem(STORAGE_KEYS.QUARK_COOKIE);
+    const cookieInfo = await getQuarkCookie();
 
-    if (stored && stored.trim()) {
-      log('debug', '从AsyncStorage获取Cookie');
-      const trimmed = stored.trim();
-      // 尝试 JSON 解析（新格式: { cookie, expiry, savedAt }，与 AppContext 统一）
-      try {
-        const parsed = JSON.parse(trimmed);
-        if (parsed && typeof parsed.cookie === 'string' && parsed.cookie.trim()) {
-          log('debug', '使用统一JSON格式Cookie');
-          return parsed.cookie.trim();
-        }
-        // JSON 解析成功但没有有效的 cookie 字段
-        log('warn', 'Cookie JSON格式正确但缺少cookie字段');
-      } catch (e) {
-        // 不是 JSON，当作旧版纯字符串 Cookie（向后兼容）
-        log('debug', '检测到旧版纯字符串Cookie，返回原始值');
-        return trimmed;
-      }
+    if (cookieInfo && typeof cookieInfo.cookie === 'string' && cookieInfo.cookie.trim()) {
+      log('debug', '从SecureStore获取Cookie');
+      return cookieInfo.cookie.trim();
     }
 
     // 回退到配置文件中的Cookie
@@ -124,7 +110,7 @@ export async function getCookie() {
  */
 export async function clearCookie() {
   try {
-    await AsyncStorage.removeItem(STORAGE_KEYS.QUARK_COOKIE);
+    await removeQuarkCookie();
 
     log('info', 'Cookie已清除');
     return true;
@@ -199,47 +185,21 @@ export async function isCookieValid(checkOnline = false) {
  */
 export async function getCookieRemainingDays() {
   try {
-    // 优先从统一JSON格式中读取过期时间（ISO 字符串：{ cookie, expiry, savedAt }）
-    const stored = await AsyncStorage.getItem(STORAGE_KEYS.QUARK_COOKIE);
-    if (stored) {
-      try {
-        const parsed = JSON.parse(stored);
-        if (parsed && parsed.expiry) {
-          const expiryDate = new Date(parsed.expiry);
-          if (!isNaN(expiryDate.getTime())) {
-            const now = new Date();
-            const remainingMs = expiryDate.getTime() - now.getTime();
-            const remainingDays = remainingMs / (1000 * 60 * 60 * 24);
-            log('debug', `Cookie剩余天数(JSON): ${remainingDays.toFixed(1)}`);
-            return Math.max(0, Math.floor(remainingDays));
-          }
-        }
-      } catch (e) {
-        // 不是 JSON，回退到旧版时间戳方式
+    // 从 SecureStore 读取统一格式 { cookie, expiry, savedAt }
+    const cookieInfo = await getQuarkCookie();
+    if (cookieInfo && cookieInfo.expiry) {
+      const expiryDate = new Date(cookieInfo.expiry);
+      if (!isNaN(expiryDate.getTime())) {
+        const now = new Date();
+        const remainingMs = expiryDate.getTime() - now.getTime();
+        const remainingDays = remainingMs / (1000 * 60 * 60 * 24);
+        log('debug', `Cookie剩余天数: ${remainingDays.toFixed(1)}`);
+        return Math.max(0, Math.floor(remainingDays));
       }
     }
 
-    // 回退：从旧版 @quark_cookie_expiry 时间戳计算（仅用于旧数据迁移读取，已废弃）
-    log('warn', '使用已废弃的 QUARK_COOKIE_EXPIRY key 回退读取，请更新 Cookie');
-    const expiryStr = await AsyncStorage.getItem(STORAGE_KEYS.QUARK_COOKIE_EXPIRY);
-    if (!expiryStr) {
-      log('debug', '未找到Cookie过期时间戳');
-      return null;
-    }
-
-    const savedTimestamp = parseInt(expiryStr, 10);
-    if (isNaN(savedTimestamp)) {
-      log('warn', 'Cookie过期时间戳格式无效');
-      return null;
-    }
-
-    const now = Date.now();
-    const elapsedMs = now - savedTimestamp;
-    const elapsedDays = elapsedMs / (1000 * 60 * 60 * 24);
-    const remainingDays = QUARK_CONFIG.cookieExpiryDays - elapsedDays;
-
-    log('debug', `Cookie剩余天数(legacy): ${remainingDays.toFixed(1)}`);
-    return Math.max(0, Math.floor(remainingDays));
+    log('debug', '未找到Cookie过期时间戳');
+    return null;
   } catch (error) {
     log('error', '计算Cookie剩余天数失败:', error);
     return null;
@@ -257,18 +217,15 @@ export async function getCookieRemainingDays() {
  */
 export async function getCookieStatus() {
   try {
-    const cookie = await getCookie();
+    const cookieInfo = await getQuarkCookie();
+    const cookie = cookieInfo && cookieInfo.cookie ? cookieInfo.cookie.trim() : null;
     const remaining = await getCookieRemainingDays();
 
     let source = 'none';
     if (cookie) {
-      // 检查是否来自 AsyncStorage（而非仅 config 回退）
-      const stored = await AsyncStorage.getItem(STORAGE_KEYS.QUARK_COOKIE);
-      if (stored && stored.trim()) {
-        source = 'async-storage';
-      } else {
-        source = 'config';
-      }
+      source = 'secure-storage';
+    } else if (QUARK_CONFIG.cookie && QUARK_CONFIG.cookie.trim()) {
+      source = 'config';
     }
 
     const hasCookie = !!cookie;

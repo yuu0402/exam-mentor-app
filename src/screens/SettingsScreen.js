@@ -19,10 +19,9 @@ import * as SecureStore from 'expo-secure-store';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
 import { APP_INFO } from '../config';
-import { logout as backendLogout } from '../api/backend';
 
 export default function SettingsScreen({ navigation }) {
-  const { saveQuarkCookie, quarkCookie, isCookieExpired } = useApp();
+  const { saveQuarkCookie, quarkCookie, isCookieExpired, logout } = useApp();
 
   // 夸克Cookie状态
   const [quarkCookieInput, setQuarkCookieInput] = useState('');
@@ -196,23 +195,8 @@ export default function SettingsScreen({ navigation }) {
           text: '确定退出',
           style: 'destructive',
           onPress: async () => {
-            try {
-              // 调用后端登出
-              await backendLogout();
-            } catch (e) {
-              console.warn('后端登出失败:', e?.message);
-            }
-            // 清除用户相关数据，保留 AI 配置和通知设置
-            await AsyncStorage.multiRemove([
-              '@student', '@onboarding', '@auth_token', '@nav_state',
-              '@study_plan', '@diagnosis_result', '@today_tasks',
-              '@course_cache', '@study_logs', '@entertainment_logs',
-            ]);
-            // 跳转到登录页
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
+            // 调用 AppContext logout 处理清除逻辑并设置 isLoggedIn=false
+            await logout();
           },
         },
       ]
@@ -229,7 +213,7 @@ export default function SettingsScreen({ navigation }) {
           <TextInput
             style={styles.multilineInput}
             placeholder="请粘贴夸克网盘Cookie..."
-            placeholderTextColor="#C7C7CC"
+            placeholderTextColor="#9E9E9E"
             value={quarkCookieInput}
             onChangeText={setQuarkCookieInput}
             multiline
@@ -260,7 +244,7 @@ export default function SettingsScreen({ navigation }) {
           <TextInput
             style={styles.input}
             placeholder="请输入OpenAI API Key..."
-            placeholderTextColor="#C7C7CC"
+            placeholderTextColor="#9E9E9E"
             value={aiApiKey}
             onChangeText={setAiApiKey}
             secureTextEntry
@@ -271,7 +255,7 @@ export default function SettingsScreen({ navigation }) {
           <TextInput
             style={styles.input}
             placeholder="gpt-4"
-            placeholderTextColor="#C7C7CC"
+            placeholderTextColor="#9E9E9E"
             value={aiModel}
             onChangeText={setAiModel}
             autoCapitalize="none"
@@ -322,7 +306,7 @@ export default function SettingsScreen({ navigation }) {
               <Icon name="delete-outline" size={24} color="#FF9500" />
               <Text style={styles.menuItemText}>清除缓存</Text>
             </View>
-            <Icon name="chevron-right" size={24} color="#C7C7CC" />
+            <Icon name="chevron-right" size={24} color="#C8C8CD" />
           </TouchableOpacity>
         </View>
       </View>
@@ -339,7 +323,7 @@ export default function SettingsScreen({ navigation }) {
               <Icon name="logout" size={24} color="#FF3B30" />
               <Text style={[styles.menuItemText, { color: '#FF3B30' }]}>退出登录</Text>
             </View>
-            <Icon name="chevron-right" size={24} color="#C7C7CC" />
+            <Icon name="chevron-right" size={24} color="#C8C8CD" />
           </TouchableOpacity>
         </View>
       </View>
@@ -364,7 +348,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: '#636366',
     marginLeft: 16,
     marginBottom: 8,
     textTransform: 'uppercase',
@@ -377,7 +361,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: '#636366',
     marginBottom: 8,
   },
   input: {
@@ -406,7 +390,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   saveButtonDisabled: {
-    backgroundColor: '#C7C7CC',
+    backgroundColor: '#C8C8CD',
   },
   saveButtonText: {
     color: '#fff',
@@ -415,7 +399,7 @@ const styles = StyleSheet.create({
   },
   hint: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: '#636366',
     marginTop: 8,
     lineHeight: 18,
   },
@@ -455,7 +439,7 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 12,
-    color: '#C7C7CC',
+    color: '#C8C8CD',
   },
   bottomPadding: {
     height: 30,

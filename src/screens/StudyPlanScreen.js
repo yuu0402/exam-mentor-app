@@ -875,7 +875,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
     paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
+    borderBottomColor: '#D1D1D6',
   },
   tab: {
     flex: 1,
@@ -967,7 +967,7 @@ const styles = StyleSheet.create({
   },
   taskDivider: {
     width: 1,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#D1D1D6',
     marginHorizontal: 12,
   },
   taskInfo: {
@@ -1083,8 +1083,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
-  phaseStatLabel: {
-    fontSize: 10,
+  phaseStatLabel: { fontSize: 12,
     color: 'rgba(255,255,255,0.75)',
     marginTop: 2,
   },
@@ -1106,7 +1105,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 2,
     borderLeftWidth: 3,
-    borderLeftColor: '#E0E0E0',
+    borderLeftColor: '#D1D1D6',
   },
   phaseCardActive: {
     borderLeftColor: '#4CAF50',
@@ -1121,7 +1120,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#D1D1D6',
     marginRight: 10,
   },
   phaseDotActive: {
@@ -1142,8 +1141,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 8,
   },
-  phaseCurrentBadgeText: {
-    fontSize: 11,
+  phaseCurrentBadgeText: { fontSize: 12,
     color: '#fff',
     fontWeight: '600',
   },
@@ -1400,7 +1398,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#F5F5F5',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#D1D1D6',
   },
   subjectChipActive: {
     backgroundColor: '#E8F5E9',
@@ -1423,7 +1421,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#D1D1D6',
   },
   addTaskInput: {
     fontSize: 13,
@@ -1443,7 +1441,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#F5F5F5',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#D1D1D6',
   },
   quickTitleChipActive: {
     backgroundColor: '#FFF3E0',
@@ -1468,7 +1466,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     backgroundColor: '#F5F5F5',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#D1D1D6',
   },
   durationChipActive: {
     backgroundColor: '#E3F2FD',

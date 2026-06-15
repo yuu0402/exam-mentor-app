@@ -219,7 +219,7 @@ export default function AIChatScreen({ route }) {
     return (
       <View style={styles.configContainer}>
         <View style={styles.configCard}>
-          <Icon name="psychology" size={72} color="#C7C7CC" />
+          <Icon name="psychology" size={72} color="#9E9E9E" />
           <Text style={styles.configTitle}>AI 学习助手</Text>
           <Text style={styles.configStatus}>未配置</Text>
           <View style={styles.configDivider} />
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
     width: 42, height: 42, borderRadius: 21, backgroundColor: '#4CAF50',
     justifyContent: 'center', alignItems: 'center',
   },
-  sendDisabled: { backgroundColor: '#E0E0E0' },
+  sendDisabled: { backgroundColor: '#D1D1D6' },
 
   // ── AI 未配置引导页 ──
   configContainer: {
@@ -412,6 +412,7 @@ const styles = StyleSheet.create({
   configStepNum: {
     width: 28, height: 28, borderRadius: 14, backgroundColor: '#007AFF',
     justifyContent: 'center', alignItems: 'center',
+    hitSlop: { top: 6, bottom: 6, left: 6, right: 6 },
   },
   configStepNumText: {
     fontSize: 14, fontWeight: '700', color: '#fff',
@@ -424,6 +425,6 @@ const styles = StyleSheet.create({
     borderRadius: 10, padding: 12, gap: 8,
   },
   configNoteText: {
-    flex: 1, fontSize: 12, color: '#8E8E93', lineHeight: 18,
+    flex: 1, fontSize: 12, color: '#636366', lineHeight: 18,
   },
 });

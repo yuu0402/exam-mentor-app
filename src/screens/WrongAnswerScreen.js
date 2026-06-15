@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback, memo } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, memo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { useApp } from '../context/AppContext';
@@ -44,7 +44,7 @@ const WrongAnswerCard = memo(function WrongAnswerCard({ w, idx, due, statusText,
           <Text style={styles.answerLabel}>你的答案</Text>
           <Text style={styles.answerWrong}>{w.userAnswer || '未作答'}</Text>
         </View>
-        <Icon name="arrow-forward" size={16} color="#8E8E93" />
+        <Icon name="arrow-forward" size={16} color="#636366" />
         <View style={styles.answerBadge}>
           <Text style={styles.answerLabel}>正确答案</Text>
           <Text style={styles.answerCorrect}>{w.correctAnswer || '?'}</Text>
@@ -81,7 +81,7 @@ const WrongAnswerCard = memo(function WrongAnswerCard({ w, idx, due, statusText,
 
       {w.explanation ? null : (
         <View style={styles.noExplanationHint}>
-          <Icon name="info-outline" size={14} color="#8E8E93" />
+          <Icon name="info-outline" size={14} color="#636366" />
           <Text style={styles.noExplanationHintText}>暂无本地解析，可查看相关课程学习</Text>
         </View>
       )}
@@ -129,6 +129,7 @@ export default function WrongAnswerScreen({ navigation }) {
   const [practiceAnswers, setPracticeAnswers] = useState({});
   const [practiceFinished, setPracticeFinished] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+  const practiceTimeoutRef = useRef(null);
   const today = formatDate(new Date());
 
   // 从后端拉取错题数据
@@ -214,7 +215,7 @@ export default function WrongAnswerScreen({ navigation }) {
   const getReviewStatusColor = (wa) => {
     if (wa?.reviewState?.completedAll) return '#34C759';
     if (isDueToday(wa)) return '#FF9500';
-    return '#8E8E93';
+    return '#636366';
   };
 
   // 进入练习模式
@@ -248,7 +249,7 @@ export default function WrongAnswerScreen({ navigation }) {
     if (!isCorrect && addWrongAnswer) {
       addWrongAnswer(q);
     }
-    setTimeout(() => {
+    practiceTimeoutRef.current = setTimeout(() => {
       if (practiceIndex < practiceQuestions.length - 1) {
         setPracticeIndex(prev => prev + 1);
         setPracticeSelected(null);
@@ -294,7 +295,7 @@ export default function WrongAnswerScreen({ navigation }) {
   if (practiceMode && practiceQuestions.length === 0) {
     return (
       <View style={styles.empty}>
-        <Icon name="quiz" size={70} color="#C7C7CC" />
+        <Icon name="quiz" size={70} color="#9E9E9E" />
         <Text style={styles.emptyTitle}>暂无错题可练习</Text>
         <TouchableOpacity style={styles.goBtn} onPress={exitPracticeMode}>
           <Text style={styles.goBtnText}>返回错题本</Text>
@@ -383,7 +384,7 @@ export default function WrongAnswerScreen({ navigation }) {
         {/* 顶部进度 */}
         <View style={styles.practiceQuizHead}>
           <TouchableOpacity onPress={exitPracticeMode} style={styles.practiceQuizBackBtn}>
-            <Icon name="close" size={22} color="#8E8E93" />
+            <Icon name="close" size={22} color="#636366" />
           </TouchableOpacity>
           <View style={styles.practiceQuizProgressBar}>
             <View style={[styles.practiceQuizProgressFill, {
@@ -513,7 +514,7 @@ export default function WrongAnswerScreen({ navigation }) {
       )}
 
       {grouped.map(([subject, items]) => {
-        const color = SUBJECT_COLORS[subject] || '#8E8E93';
+        const color = SUBJECT_COLORS[subject] || '#636366';
         return (
           <View key={subject} style={styles.group}>
             <View style={styles.groupHead}>
@@ -572,30 +573,30 @@ const styles = StyleSheet.create({
   container: { flex:1, backgroundColor:'#F2F2F7' },
   empty: { flex:1, justifyContent:'center', alignItems:'center', backgroundColor:'#F2F2F7', padding:30 },
   emptyTitle: { fontSize:20, fontWeight:'700', color:'#000', marginTop:16 },
-  emptyDesc: { fontSize:14, color:'#8E8E93', marginTop:8, marginBottom:24, textAlign:'center' },
+  emptyDesc: { fontSize:14, color:'#636366', marginTop:8, marginBottom:24, textAlign:'center' },
   goBtn: { backgroundColor:'#007AFF', borderRadius:20, paddingHorizontal:28, paddingVertical:12 },
   goBtnText: { color:'#fff', fontSize:15, fontWeight:'600' },
 
   header: { paddingHorizontal:20, paddingTop:16, paddingBottom:4 },
   headerTitle: { fontSize:28, fontWeight:'800', color:'#000' },
-  headerCount: { fontSize:14, color:'#8E8E93', marginTop:2 },
+  headerCount: { fontSize:14, color:'#636366', marginTop:2 },
   statsRow: { flexDirection:'row', gap:12, marginTop:12, flexWrap:'wrap' },
   statBadge: { backgroundColor:'#fff', borderRadius:12, paddingHorizontal:12, paddingVertical:6, alignItems:'center', shadowColor:'#000', shadowOffset:{w:0,h:1}, shadowOpacity:0.03, shadowRadius:3 },
   statBadgeGreen: { backgroundColor:'#F0FFF4' },
   statNum: { fontSize:16, fontWeight:'800', color:'#000' },
-  statLabel: { fontSize:12, color:'#8E8E93', marginTop:1 },
+  statLabel: { fontSize:12, color:'#636366', marginTop:1 },
 
   // 网络错误提示
   errorBanner: { flexDirection:'row', alignItems:'center', backgroundColor:'#FF3B30', paddingVertical:10, paddingHorizontal:16, marginHorizontal:16, marginTop:12, borderRadius:10, gap:6 },
   errorBannerText: { color:'#fff', fontSize:13, fontWeight:'500', flex:1 },
   errorBannerRetry: { color:'rgba(255,255,255,0.8)', fontSize:12, fontWeight:'600' },
-  forgetRateHint: { fontSize:12, color:'#8E8E93', marginTop:8, lineHeight:16 },
+  forgetRateHint: { fontSize:12, color:'#636366', marginTop:8, lineHeight:16 },
 
   group: { marginBottom:20, paddingHorizontal:16 },
   groupHead: { flexDirection:'row', alignItems:'center', marginBottom:10, gap:8 },
   groupDot: { width:10, height:10, borderRadius:5 },
   groupTitle: { fontSize:17, fontWeight:'700', color:'#000', flex:1 },
-  groupCount: { fontSize:13, color:'#8E8E93' },
+  groupCount: { fontSize:13, color:'#636366' },
 
   card: { backgroundColor:'#fff', borderRadius:14, padding:16, marginBottom:8, shadowColor:'#000', shadowOffset:{w:0,h:1}, shadowOpacity:0.03, shadowRadius:4 },
   cardDue: { borderWidth:1, borderColor:'#FFE0B2' },
@@ -610,7 +611,7 @@ const styles = StyleSheet.create({
   question: { fontSize:14, color:'#000', fontWeight:'500', lineHeight:20, marginBottom:10 },
   answerRow: { flexDirection:'row', alignItems:'center', justifyContent:'center', gap:12, marginBottom:8 },
   answerBadge: { alignItems:'center', flex:1 },
-  answerLabel: { fontSize:12, color:'#8E8E93', marginBottom:2 },
+  answerLabel: { fontSize:12, color:'#636366', marginBottom:2 },
   answerWrong: { fontSize:15, fontWeight:'700', color:'#FF3B30' },
   answerCorrect: { fontSize:15, fontWeight:'700', color:'#34C759' },
   explanation: { fontSize:13, color:'#666', lineHeight:20, backgroundColor:'#F2F2F7', borderRadius:8, padding:10, marginTop:8 },
@@ -630,7 +631,7 @@ const styles = StyleSheet.create({
   courseBtn: { flexDirection:'row', alignItems:'center', justifyContent:'center', marginTop:10, paddingVertical:12, gap:4, borderRadius:10, backgroundColor:'#EBF5FF' },
   courseBtnText: { fontSize:13, color:'#007AFF', fontWeight:'500' },
   noExplanationHint: { flexDirection:'row', alignItems:'center', justifyContent:'center', marginTop:10, gap:4 },
-  noExplanationHintText: { fontSize:12, color:'#8E8E93' },
+  noExplanationHintText: { fontSize:12, color:'#636366' },
 
   // ===== 练习模式按钮 =====
   headerTopRow: { flexDirection:'row', alignItems:'flex-start', justifyContent:'space-between', marginBottom:10 },
@@ -648,7 +649,7 @@ const styles = StyleSheet.create({
   practiceQuizBackBtn: { padding:8 },
   practiceQuizProgressBar: { flex:1, height:4, backgroundColor:'#E5E5EA', borderRadius:2, overflow:'hidden' },
   practiceQuizProgressFill: { height:'100%', backgroundColor:'#4CAF50', borderRadius:2 },
-  practiceQuizCounter: { fontSize:13, fontWeight:'600', color:'#8E8E93', minWidth:36, textAlign:'right' },
+  practiceQuizCounter: { fontSize:13, fontWeight:'600', color:'#636366', minWidth:36, textAlign:'right' },
   practiceQuizBody: { flex:1 },
   practiceQuizBodyInner: { padding:20, paddingTop:16 },
   practiceQText: { fontSize:17, fontWeight:'600', color:'#000', lineHeight:26, marginBottom:24 },
@@ -670,7 +671,7 @@ const styles = StyleSheet.create({
     width:80, height:80, borderRadius:40, justifyContent:'center', alignItems:'center', marginBottom:14,
   },
   practiceResultTitle: { fontSize:20, fontWeight:'700', color:'#000', marginBottom:6 },
-  practiceResultScore: { fontSize:15, color:'#8E8E93', marginBottom:12 },
+  practiceResultScore: { fontSize:15, color:'#636366', marginBottom:12 },
   practiceResultBarTrack: { width:'80%', height:8, backgroundColor:'#E5E5EA', borderRadius:4, overflow:'hidden' },
   practiceResultBarFill: { height:'100%', borderRadius:4 },
   practiceReviewCard: {
@@ -678,7 +679,7 @@ const styles = StyleSheet.create({
     shadowColor:'#000', shadowOffset:{w:0,h:1}, shadowOpacity:0.03, shadowRadius:4,
   },
   practiceReviewQHead: { flexDirection:'row', gap:10, marginBottom:10, alignItems:'flex-start' },
-  practiceReviewIdx: { width:24, height:24, borderRadius:8, justifyContent:'center', alignItems:'center' },
+  practiceReviewIdx: { width:24, height:24, borderRadius:8, justifyContent:'center', alignItems:'center', hitSlop:{top:6,bottom:6,left:6,right:6} },
   practiceReviewIdxText: { fontSize:12, fontWeight:'700', color:'#fff' },
   practiceReviewQText: { flex:1, fontSize:14, fontWeight:'500', color:'#000', lineHeight:20 },
   practiceReviewOptions: { marginBottom:8, gap:4 },
@@ -689,7 +690,7 @@ const styles = StyleSheet.create({
   practiceReviewOptLabel: { fontSize:13, fontWeight:'700', minWidth:20 },
   practiceReviewOptText: { flex:1, fontSize:13, color:'#000' },
   practiceExplanation: {
-    fontSize:12, color:'#8E8E93', lineHeight:18, paddingTop:4,
+    fontSize:12, color:'#636366', lineHeight:18, paddingTop:4,
     borderTopWidth:StyleSheet.hairlineWidth, borderTopColor:'#E5E5EA', marginTop:4,
   },
   practiceResultActions: { flexDirection:'row', gap:12, marginTop:8 },
@@ -703,5 +704,5 @@ const styles = StyleSheet.create({
     backgroundColor:'#fff', borderRadius:14, paddingVertical:14,
     borderWidth:1, borderColor:'#E5E5EA',
   },
-  practiceResultBtnSecondaryText: { color:'#8E8E93', fontSize:15, fontWeight:'600' },
+  practiceResultBtnSecondaryText: { color:'#636366', fontSize:15, fontWeight:'600' },
 });

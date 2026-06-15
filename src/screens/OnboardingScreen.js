@@ -186,7 +186,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={styles.nameInput}
               placeholder="输入你的昵称或名字"
-              placeholderTextColor="#C7C7CC"
+              placeholderTextColor="#9E9E9E"
               value={name}
               onChangeText={setName}
               maxLength={20}
@@ -263,7 +263,7 @@ export default function OnboardingScreen() {
                 <TextInput
                   style={styles.scoreInput}
                   placeholder={`0-${s.score}`}
-                  placeholderTextColor="#C7C7CC"
+                  placeholderTextColor="#9E9E9E"
                   keyboardType="numeric"
                   maxLength={3}
                   value={currentScores[s.id]?.toString() || ''}
@@ -310,7 +310,7 @@ export default function OnboardingScreen() {
             <TextInput
               style={styles.customTarget}
               placeholder="或手动输入目标分数..."
-              placeholderTextColor="#C7C7CC"
+              placeholderTextColor="#9E9E9E"
               keyboardType="numeric"
               maxLength={4}
               value={targetScore ? targetScore.toString() : ''}
@@ -374,7 +374,7 @@ export default function OnboardingScreen() {
             disabled={!canNext()}
           >
             <Text style={styles.btnPrimaryText}>下一步</Text>
-            <Icon name="arrow-forward" size={20} color={canNext() ? '#fff' : '#C7C7CC'} />
+            <Icon name="arrow-forward" size={20} color={canNext() ? '#fff' : '#C8C8CD'} />
           </TouchableOpacity>
         ) : (
           <TouchableOpacity
@@ -397,7 +397,7 @@ const styles = StyleSheet.create({
 
   // 跳过按钮
   skipBtn: { alignSelf: 'flex-end', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 8 },
-  skipText: { fontSize: 14, color: '#8E8E93', fontWeight: '500' },
+  skipText: { fontSize: 14, color: '#636366', fontWeight: '500' },
 
   // 进度条
   progressWrap: {
@@ -405,17 +405,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24, marginBottom: 12,
   },
   progressTrack: {
-    flex: 1, height: 4, backgroundColor: '#E0E0E0', borderRadius: 2,
+    flex: 1, height: 4, backgroundColor: '#D1D1D6', borderRadius: 2,
     overflow: 'hidden', marginRight: 10,
   },
   progressFill: { height: '100%', backgroundColor: '#007AFF', borderRadius: 2 },
-  progressText: { fontSize: 12, color: '#8E8E93', fontWeight: '600', width: 36, textAlign: 'right' },
+  progressText: { fontSize: 12, color: '#636366', fontWeight: '600', width: 36, textAlign: 'right' },
 
   // 主体
   body: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
   bodyInner: { alignItems: 'center' },
   stepTitle: { fontSize: 28, fontWeight: '800', color: '#000', textAlign: 'center' },
-  stepSubtitle: { fontSize: 15, color: '#8E8E93', textAlign: 'center', marginTop: 8, marginBottom: 32 },
+  stepSubtitle: { fontSize: 15, color: '#636366', textAlign: 'center', marginTop: 8, marginBottom: 32 },
 
   stepContent: { width: '100%', alignItems: 'center' },
 
@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10, paddingHorizontal: 4, textAlign: 'center',
     marginBottom: 12,
   },
-  hint: { fontSize: 13, color: '#C7C7CC', textAlign: 'center' },
+  hint: { fontSize: 13, color: '#C8C8CD', textAlign: 'center' },
 
   // ---- Step 1: Grade ----
   optionCard: {
@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
   optionTextWrap: { flex: 1, marginLeft: 16 },
   optionLabel: { fontSize: 18, fontWeight: '700', color: '#000' },
   optionLabelActive: { color: '#fff' },
-  optionDesc: { fontSize: 13, color: '#8E8E93', marginTop: 2 },
+  optionDesc: { fontSize: 13, color: '#636366', marginTop: 2 },
   optionDescActive: { color: 'rgba(255,255,255,0.7)' },
 
   // ---- Step 2: City ----
@@ -465,7 +465,7 @@ const styles = StyleSheet.create({
   scoreScroll: { width: '100%', maxHeight: 340 },
   scoreScrollInner: { paddingBottom: 8 },
   scoreIntro: {
-    fontSize: 13, color: '#8E8E93', textAlign: 'center',
+    fontSize: 13, color: '#636366', textAlign: 'center',
     lineHeight: 20, marginBottom: 20,
   },
   scoreRow: {
@@ -479,10 +479,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5, borderBottomColor: '#007AFF',
     textAlign: 'center', paddingVertical: 4,
   },
-  scoreMax: { fontSize: 14, color: '#8E8E93', width: 35, textAlign: 'right' },
+  scoreMax: { fontSize: 14, color: '#636366', width: 35, textAlign: 'right' },
 
   // ---- Step 4: Target ----
-  totalScoreHint: { fontSize: 14, color: '#8E8E93', marginBottom: 16 },
+  totalScoreHint: { fontSize: 14, color: '#636366', marginBottom: 16 },
   targetGrid: {
     width: '100%', flexDirection: 'row', flexWrap: 'wrap',
     justifyContent: 'center', gap: 10, marginBottom: 20,
@@ -494,9 +494,9 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOffset: { w: 0, h: 2 }, shadowOpacity: 0.04, shadowRadius: 4,
   },
   targetScore: { fontSize: 30, fontWeight: '800' },
-  targetPct: { fontSize: 12, color: '#8E8E93', marginTop: 2 },
+  targetPct: { fontSize: 12, color: '#636366', marginTop: 2 },
   targetLabel: { fontSize: 16, fontWeight: '700', color: '#000', marginTop: 8 },
-  targetDesc: { fontSize: 11, color: '#8E8E93', marginTop: 2, textAlign: 'center' },
+  targetDesc: { fontSize: 11, color: '#636366', marginTop: 2, textAlign: 'center' },
   customTarget: {
     width: '100%', fontSize: 16, color: '#000', textAlign: 'center',
     borderBottomWidth: 1, borderBottomColor: '#E0E0E0',
@@ -523,5 +523,5 @@ const styles = StyleSheet.create({
   },
   btnFinish: { paddingHorizontal: 32 },
   btnPrimaryText: { fontSize: 16, fontWeight: '700', color: '#fff' },
-  btnDisabled: { backgroundColor: '#E0E0E0', shadowOpacity: 0 },
+  btnDisabled: { backgroundColor: '#D1D1D6', shadowOpacity: 0 },
 });

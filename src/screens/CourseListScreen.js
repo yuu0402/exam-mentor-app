@@ -25,7 +25,7 @@ const SUBJECT_ICONS = {
 const SUBJECT_COLORS = {
   math: '#FF3B30', physics: '#007AFF', english: '#FF9500', chinese: '#34C759',
   chemistry: '#AF52DE', biology: '#34C759', history: '#FF9500', geography: '#007AFF',
-  politics: '#5856D6', other: '#8E8E93',
+  politics: '#5856D6', other: '#636366',
 };
 
 const SUBJECT_NAMES = {
@@ -330,7 +330,7 @@ export default function CourseListScreen({ navigation }) {
       }
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [load]);
 
   // ── 展开/折叠 ──────────────────────────────────────────────
 
@@ -388,7 +388,7 @@ export default function CourseListScreen({ navigation }) {
   if (isOfflineMode && (!courses || courses.length === 0) && !loading) {
     return (
       <ScrollView style={styles.container} contentContainerStyle={styles.centerContent}>
-        <Icon name="cloud-off" size={60} color="#C7C7CC" />
+        <Icon name="cloud-off" size={60} color="#9E9E9E" />
         <Text style={styles.emptyTitle}>课程加载需要登录夸克网盘</Text>
         <Text style={styles.emptyDesc}>别担心，让家长帮你操作一下就好</Text>
         <TouchableOpacity style={styles.btn} onPress={showSetupGuide}>
@@ -432,15 +432,15 @@ export default function CourseListScreen({ navigation }) {
     <View style={styles.container}>
       {/* Search */}
       <View style={styles.searchBar}>
-        <Icon name="search" size={18} color="#8E8E93" />
+        <Icon name="search" size={18} color="#636366" />
         <TextInput
           style={styles.searchInput}
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="搜索课程..."
-          placeholderTextColor="#C7C7CC"
+          placeholderTextColor="#9E9E9E"
         />
-        {searchQuery ? <TouchableOpacity onPress={()=>setSearchQuery('')}><Icon name="close" size={18} color="#8E8E93" /></TouchableOpacity> : null}
+        {searchQuery ? <TouchableOpacity onPress={()=>setSearchQuery('')}><Icon name="close" size={18} color="#636366" /></TouchableOpacity> : null}
       </View>
 
       <ScrollView
@@ -509,7 +509,7 @@ export default function CourseListScreen({ navigation }) {
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recScroll}>
               {generalRecommend.slice(0, 8).map((f, i) => {
-                const subjColor = SUBJECT_COLORS[f.subject] || '#8E8E93';
+                const subjColor = SUBJECT_COLORS[f.subject] || '#636366';
                 const subjName = SUBJECT_NAMES[f.subject] || f.subject;
                 return (
                   <TouchableOpacity
@@ -565,7 +565,7 @@ export default function CourseListScreen({ navigation }) {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.recScroll}>
               {weakPoints.slice(0, 5).map((wp, i) => {
                 const subjName = SUBJECT_NAMES[wp.subject] || wp.subject;
-                const color = SUBJECT_COLORS[wp.subject] || '#8E8E93';
+                const color = SUBJECT_COLORS[wp.subject] || '#636366';
                 const wpLabel = wp.knowledgePoint || wp.section || wp.chapter || '';
                 // 用统一匹配逻辑筛选真正相关的课程（不只是同科目）
                 const relatedCourses = (courses||[]).filter(c => isRecommended(c, [wp])).slice(0, 3);
@@ -629,7 +629,7 @@ export default function CourseListScreen({ navigation }) {
             </TouchableOpacity>
             {breadcrumb.map((crumb, i) => (
               <View key={crumb.key} style={styles.breadcrumbItem}>
-                <Icon name="chevron-right" size={14} color="#C7C7CC" />
+                <Icon name="chevron-right" size={14} color="#9E9E9E" />
                 <TouchableOpacity onPress={() => {
                   if (crumb.type === 'subject') {
                     setExpandedChapters({});
@@ -659,7 +659,7 @@ export default function CourseListScreen({ navigation }) {
             {/* P1-8 fix: 搜索返回 0 结果时显示"未找到结果"空状态 */}
             {filtered.length === 0 ? (
               <View style={styles.emptySearch}>
-                <Icon name="search-off" size={48} color="#C7C7CC" />
+                <Icon name="search-off" size={48} color="#9E9E9E" />
                 <Text style={styles.emptySearchText}>未找到" {searchQuery} "相关课程</Text>
                 <Text style={styles.emptySearchHint}>试试其他关键词或取消搜索</Text>
               </View>
@@ -680,7 +680,7 @@ export default function CourseListScreen({ navigation }) {
         ) : (
           /* 3级树 */
           Object.entries(treeData).map(([subject, chapters]) => {
-            const color = SUBJECT_COLORS[subject] || '#8E8E93';
+            const color = SUBJECT_COLORS[subject] || '#636366';
             const subjectName = SUBJECT_NAMES[subject] || subject;
             const subjectRecommended = recommendOnly ? false : hasRecommendations;
             const subjectTotalVids = Object.values(chapters).reduce((sum, kps) => sum + Object.values(kps).reduce((s, v) => s + v.length, 0), 0);
@@ -706,7 +706,7 @@ export default function CourseListScreen({ navigation }) {
                       )}
                     </Text>
                   </View>
-                  <Icon name={expandedSubjects[subject] ? 'expand-less' : 'expand-more'} size={24} color="#C7C7CC" />
+                  <Icon name={expandedSubjects[subject] ? 'expand-less' : 'expand-more'} size={24} color="#9E9E9E" />
                 </TouchableOpacity>
 
                 {expandedSubjects[subject] && (
@@ -740,7 +740,7 @@ export default function CourseListScreen({ navigation }) {
                                   )}
                                 </Text>
                               </View>
-                              <Icon name={expandedChapters[chapterKey] ? 'expand-less' : 'expand-more'} size={20} color="#C7C7CC" />
+                              <Icon name={expandedChapters[chapterKey] ? 'expand-less' : 'expand-more'} size={20} color="#9E9E9E" />
                             </TouchableOpacity>
                             <TouchableOpacity
                               style={styles.chapterAiBtn}
@@ -789,7 +789,7 @@ export default function CourseListScreen({ navigation }) {
                                           {kpCompletedCount > 0 ? `${kpCompletedCount}/${vids.length}` : `${vids.length}视频`}
                                         </Text>
                                       </View>
-                                      <Icon name={expandedKPs[kpKey] ? 'expand-less' : 'expand-more'} size={16} color="#C7C7CC" />
+                                      <Icon name={expandedKPs[kpKey] ? 'expand-less' : 'expand-more'} size={16} color="#9E9E9E" />
                                     </TouchableOpacity>
 
                                     {expandedKPs[kpKey] && (
@@ -824,7 +824,7 @@ export default function CourseListScreen({ navigation }) {
 
 // ── 视频条目渲染（含完成状态/推荐标签/知识点标签）──────
 function renderVideoItem(file, idx, completedIds, recommendedFids, isRecOnly, onPress) {
-  const subjectColor = SUBJECT_COLORS[file.subject] || '#8E8E93';
+  const subjectColor = SUBJECT_COLORS[file.subject] || '#636366';
   const isCompleted = !!completedIds[file.fid];
   const isRec = recommendedFids.has(file.fid);
   const kpTag = extractKnowledgePoint(file.file_name, file.chapter);
@@ -865,7 +865,7 @@ function renderVideoItem(file, idx, completedIds, recommendedFids, isRecOnly, on
           {/* 时长 */}
           {duration && (
             <View style={styles.durationTag}>
-              <Icon name="schedule" size={10} color="#8E8E93" />
+              <Icon name="schedule" size={10} color="#636366" />
               <Text style={styles.durationText}>{duration}</Text>
             </View>
           )}
@@ -911,7 +911,7 @@ const styles = StyleSheet.create({
   cookieBannerLeft: { flexDirection:'row', alignItems:'center', flex:1, gap:8 },
   cookieBannerText: { fontSize:12, color:'#FF9500', fontWeight:'500', flex:1 },
   cookieBannerBtn: {
-    backgroundColor:'#FF9500', borderRadius:14, paddingHorizontal:12, paddingVertical:5,
+    backgroundColor:'#FF9500', borderRadius:14, paddingHorizontal:12, paddingVertical:12,
   },
   cookieBannerBtnText: { fontSize:12, fontWeight:'600', color:'#fff' },
 
@@ -921,7 +921,7 @@ const styles = StyleSheet.create({
     shadowColor:'#000', shadowOffset:{w:0,h:1}, shadowOpacity:0.03, shadowRadius:4,
   },
   statNum: { fontSize:18, fontWeight:'700', color:'#000' },
-  statLbl: { fontSize:12, color:'#8E8E93', marginTop:2 },
+  statLbl: { fontSize:12, color:'#636366', marginTop:2 },
 
   // ── 继续观看卡片 ──
   continueCard: {
@@ -931,7 +931,7 @@ const styles = StyleSheet.create({
   },
   continueIconWrap: { width:48, height:48, borderRadius:24, backgroundColor:'rgba(255,255,255,0.2)', justifyContent:'center', alignItems:'center' },
   continueInfo: { flex:1 },
-  continueLabel: { fontSize:11, fontWeight:'600', color:'rgba(255,255,255,0.7)', marginBottom:2 },
+  continueLabel: { fontSize: 12, fontWeight:'600', color:'rgba(255,255,255,0.7)', marginBottom:2 },
   continueTitle: { fontSize:15, fontWeight:'700', color:'#fff', lineHeight:20 },
   continueMeta: { fontSize:12, color:'rgba(255,255,255,0.6)', marginTop:2 },
 
@@ -962,9 +962,9 @@ const styles = StyleSheet.create({
   recBadge: { flexDirection:'row', alignItems:'center', paddingHorizontal:8, paddingVertical:3, borderRadius:8, alignSelf:'flex-start', marginBottom:8, gap:4 },
   recBadgeText: { fontSize:12, fontWeight:'600' },
   recCardTitle: { fontSize:13, fontWeight:'600', color:'#000', lineHeight:18, marginBottom:6 },
-  recCardMeta: { fontSize:11, color:'#FF3B30' },
+  recCardMeta: { fontSize: 12, color:'#FF3B30' },
   recNoneCard: { backgroundColor:'#F2F2F7', borderRadius:14, padding:14, marginRight:10, width:160, justifyContent:'center', alignItems:'center' },
-  recNoneText: { fontSize:12, color:'#8E8E93', textAlign:'center', lineHeight:18, marginTop:8 },
+  recNoneText: { fontSize:12, color:'#636366', textAlign:'center', lineHeight:18, marginTop:8 },
   recommendOnlyList: { marginTop:6 },
   sectionTitle: { fontSize:16, fontWeight:'700', color:'#000', marginBottom:10 },
 
@@ -988,7 +988,7 @@ const styles = StyleSheet.create({
   subjectIconWrap: { width:40, height:40, borderRadius:12, justifyContent:'center', alignItems:'center' },
   subjectInfo: { flex:1 },
   subjectTitle: { fontSize:16, fontWeight:'700', color:'#000' },
-  subjectMeta: { fontSize:12, color:'#8E8E93', marginTop:2 },
+  subjectMeta: { fontSize:12, color:'#636366', marginTop:2 },
   subjectBody: {
     borderTopWidth: StyleSheet.hairlineWidth, borderTopColor:'#E5E5EA',
     paddingHorizontal:6, paddingBottom:6,
@@ -1007,14 +1007,14 @@ const styles = StyleSheet.create({
     flexDirection:'row', alignItems:'center',
   },
   chapterAiBtn: {
-    flexDirection:'row', alignItems:'center', paddingHorizontal:10, paddingVertical:10,
+    flexDirection:'row', alignItems:'center', paddingHorizontal:10, paddingVertical:12,
     marginRight:4, borderRadius:14, backgroundColor:'#F5F0FF', gap:3,
   },
-  chapterAiBtnText: { fontSize:11, fontWeight:'600', color:'#AF52DE' },
+  chapterAiBtnText: { fontSize: 12, fontWeight:'600', color:'#AF52DE' },
   chapterDot: { width:8, height:8, borderRadius:4 },
   chapterInfo: { flex:1 },
   chapterTitle: { fontSize:14, fontWeight:'600', color:'#1C1C1E' },
-  chapterMeta: { fontSize:11, color:'#8E8E93', marginTop:2 },
+  chapterMeta: { fontSize: 12, color:'#636366', marginTop:2 },
   chapterRecMeta: { color:'#FF9500' },
   chapterBody: { paddingLeft:4, paddingRight:4, paddingBottom:4 },
 
@@ -1029,7 +1029,7 @@ const styles = StyleSheet.create({
   kpTitle: { flex:1, fontSize:13, fontWeight:'500', color:'#3C3C43' },
   kpTitleDone: { color:'#34C759' },
   kpTags: { flexDirection:'row', alignItems:'center', gap:6, marginRight:4 },
-  kpCount: { fontSize:11, color:'#8E8E93' },
+  kpCount: { fontSize: 12, color:'#636366' },
   recTagMini: {
     backgroundColor:'#FFF5E6', borderRadius:6, paddingHorizontal:6, paddingVertical:1,
   },
@@ -1045,35 +1045,35 @@ const styles = StyleSheet.create({
     backgroundColor:'#FFF9F0',
     borderWidth:1, borderColor:'#FFE0B2',
   },
-  videoIconWrap: { width:34, height:34, borderRadius:9, justifyContent:'center', alignItems:'center' },
+  videoIconWrap: { width:34, height:34, borderRadius:9, justifyContent:'center', alignItems:'center', hitSlop:{top:6,bottom:6,left:6,right:6} },
   videoInfo: { flex:1 },
   videoTitle: { fontSize:13, fontWeight:'500', color:'#000', lineHeight:18 },
-  videoTitleDone: { color:'#8E8E93', textDecorationLine:'line-through' },
+  videoTitleDone: { color:'#636366', textDecorationLine:'line-through' },
   videoMetaRow: { flexDirection:'row', flexWrap:'wrap', alignItems:'center', gap:6, marginTop:3 },
   kpTag: {
     backgroundColor:'#F0F0F5', borderRadius:6, paddingHorizontal:6, paddingVertical:2,
   },
   kpTagText: { fontSize:12, color:'#636366' },
   durationTag: { flexDirection:'row', alignItems:'center', gap:2 },
-  durationText: { fontSize:12, color:'#8E8E93' },
+  durationText: { fontSize:12, color:'#636366' },
   doneTag: { flexDirection:'row', alignItems:'center', gap:2 },
   doneText: { fontSize:12, color:'#34C759', fontWeight:'500' },
   recTag: {
     backgroundColor:'#FFF5E6', borderRadius:8, paddingHorizontal:8, paddingVertical:3,
     flexDirection:'row', alignItems:'center', gap:3,
   },
-  recTagText: { fontSize:11, fontWeight:'600', color:'#FF9500' },
+  recTagText: { fontSize: 12, fontWeight:'600', color:'#FF9500' },
 
   // ── 通用 ──
   flatList: {},
   emptyTitle: { fontSize:18, fontWeight:'700', color:'#000', marginTop:16 },
-  emptyDesc: { fontSize:14, color:'#8E8E93', marginTop:6, marginBottom:20, textAlign:'center' },
+  emptyDesc: { fontSize:14, color:'#636366', marginTop:6, marginBottom:20, textAlign:'center' },
   btn: { backgroundColor:'#007AFF', borderRadius:20, paddingHorizontal:28, paddingVertical:12 },
   btnText: { fontSize:15, fontWeight:'600', color:'#fff' },
-  loadingText: { fontSize:14, color:'#8E8E93', marginTop:12 },
+  loadingText: { fontSize:14, color:'#636366', marginTop:12 },
 
   // P1-8: 搜索空状态样式
   emptySearch: { alignItems:'center', paddingVertical:40, gap:8 },
-  emptySearchText: { fontSize:15, color:'#8E8E93', fontWeight:'500', textAlign:'center' },
-  emptySearchHint: { fontSize:13, color:'#C7C7CC', textAlign:'center' },
+  emptySearchText: { fontSize:15, color:'#636366', fontWeight:'500', textAlign:'center' },
+  emptySearchHint: { fontSize:13, color:'#9E9E9E', textAlign:'center' },
 });

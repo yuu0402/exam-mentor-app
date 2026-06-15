@@ -63,12 +63,12 @@ function DiagnosisExplain() {
         onPress={() => setExpanded(!expanded)}
         activeOpacity={0.7}
       >
-        <Icon name="info-outline" size={16} color="#8E8E93" />
+        <Icon name="info-outline" size={16} color="#636366" />
         <Text style={styles.explainToggleText}>诊断说明</Text>
         <Icon
           name={expanded ? 'expand-less' : 'expand-more'}
           size={20}
-          color="#8E8E93"
+          color="#636366"
         />
       </TouchableOpacity>
       {expanded && (
@@ -119,7 +119,7 @@ export default function HomeScreen({ navigation }) {
   // 后端数据拉取
   // P1-2: 将结果保存到 state 供 UI 使用
   // P1-3: Promise.allSettled 永远不 reject，catch 永远不会触发，在 .then 内检查 status === 'rejected'
-  const fetchBackendData = async () => {
+  const fetchBackendData = useCallback(async () => {
     setFetchError(null);
     const results = await Promise.allSettled([
       getTaskStats(),
@@ -143,18 +143,18 @@ export default function HomeScreen({ navigation }) {
       gameState: results[4].status === 'fulfilled' ? results[4].value : null,
       todayTasks: results[5].status === 'fulfilled' ? results[5].value : null,
     });
-  };
+  }, []);
 
   useEffect(() => {
     fetchBackendData();
-  }, []);
+  }, [fetchBackendData]);
 
   // 下拉刷新
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchBackendData();
     setRefreshing(false);
-  }, []);
+  }, [fetchBackendData]);
 
   // 显示名：有姓名则 "早上好，小明"，否则 "早上好，同学"；避免空问候+逗号残留
   const displayGreeting = student?.name
@@ -407,7 +407,7 @@ export default function HomeScreen({ navigation }) {
           {/* 学习阶段 + 进度 */}
           <View style={styles.phaseInfoRow}>
             <View style={styles.phaseInfoLeft}>
-              <Icon name="timeline" size={14} color="#8E8E93" />
+              <Icon name="timeline" size={14} color="#636366" />
               <Text style={styles.phaseInfoText}>{planSummary.phaseName}</Text>
             </View>
             <View style={styles.phaseProgress}>
@@ -491,7 +491,7 @@ export default function HomeScreen({ navigation }) {
         <TouchableOpacity style={styles.reminder} onPress={() => navigation.navigate('WrongAnswers')}>
           <Icon name="bookmark" size={18} color="#FF9500" />
           <Text style={styles.reminderText}>你有 {todayReviewCount} 道错题今日待复习</Text>
-          <Icon name="chevron-right" size={18} color="#C7C7CC" />
+          <Icon name="chevron-right" size={18} color="#C8C8CD" />
         </TouchableOpacity>
       )}
 
@@ -566,7 +566,7 @@ const styles = StyleSheet.create({
   ringRow: { flexDirection:'row', justifyContent:'center', backgroundColor:'#fff', marginHorizontal:16, borderRadius:18, padding:20, marginBottom:16, shadowColor:'#000', shadowOffset:{w:0,h:2}, shadowOpacity:0.04, shadowRadius:8 },
   ring: { alignItems:'center', flex:1 },
   ringVal: { fontSize:30, fontWeight:'800', color:'#000' },
-  ringLabel: { fontSize:11, color:'#8E8E93', marginTop:2 },
+  ringLabel: { fontSize: 12, color:'#8E8E93', marginTop:2 },
   ringDivider: { width:1, height:40, backgroundColor:'#F2F2F7', alignSelf:'center' },
 
   ctaCard: { backgroundColor:'#007AFF', marginHorizontal:16, borderRadius:20, padding:24, alignItems:'center', marginBottom:20, shadowColor:'#007AFF', shadowOffset:{w:0,h:6}, shadowOpacity:0.2, shadowRadius:12 },
@@ -633,7 +633,7 @@ const styles = StyleSheet.create({
   },
   phaseInfoText: {
     fontSize: 13,
-    color: '#8E8E93',
+    color: '#636366',
     marginLeft: 4,
     fontWeight: '600',
   },
@@ -661,9 +661,8 @@ const styles = StyleSheet.create({
     width: 36,
     textAlign: 'right',
   },
-  phaseFocusText: {
-    fontSize: 11,
-    color: '#8E8E93',
+  phaseFocusText: { fontSize: 12,
+    color: '#636366',
     marginLeft: 18,
   },
 
@@ -731,8 +730,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingBottom: 14,
   },
-  explainText: {
-    fontSize: 12,
+  explainText: { fontSize: 14,
     color: '#FFFFFF', // P1-4: 改用不透明白色文字，对比度约 7:1（原来是 rgba 0.65 on 0.15，约 2.5:1）
     lineHeight: 20,
     marginTop: 6,

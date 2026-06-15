@@ -151,7 +151,7 @@ export default function ProfileScreen({ navigation }) {
             <Icon name="bar-chart" size={24} color="#007AFF" />
             <Text style={styles.menuItemText}>查看学习数据</Text>
           </View>
-          <Icon name="chevron-right" size={24} color="#C7C7CC" />
+          <Icon name="chevron-right" size={24} color="#C8C8CD" />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -163,7 +163,7 @@ export default function ProfileScreen({ navigation }) {
             <Icon name="family-restroom" size={24} color="#34C759" />
             <Text style={styles.menuItemText}>家长绑定</Text>
           </View>
-          <Icon name="chevron-right" size={24} color="#C7C7CC" />
+          <Icon name="chevron-right" size={24} color="#C8C8CD" />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -172,10 +172,10 @@ export default function ProfileScreen({ navigation }) {
           activeOpacity={0.7}
         >
           <View style={styles.menuItemLeft}>
-            <Icon name="settings" size={24} color="#8E8E93" />
+            <Icon name="settings" size={24} color="#636366" />
             <Text style={styles.menuItemText}>设置</Text>
           </View>
-          <Icon name="chevron-right" size={24} color="#C7C7CC" />
+          <Icon name="chevron-right" size={24} color="#C8C8CD" />
         </TouchableOpacity>
       </View>
 
@@ -239,9 +239,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  streakText: {
-    color: '#fff',
-    fontSize: 10,
+  streakText: { color: '#fff', fontSize: 12,
     fontWeight: 'bold',
     marginLeft: 2,
   },
@@ -257,7 +255,7 @@ const styles = StyleSheet.create({
   },
   phone: {
     fontSize: 14,
-    color: '#8E8E93',
+    color: '#636366',
   },
   statsCard: {
     backgroundColor: '#fff',
@@ -289,7 +287,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 12,
-    color: '#8E8E93',
+    color: '#636366',
   },
   statDivider: {
     width: 1,
@@ -336,9 +334,8 @@ const styles = StyleSheet.create({
     color: '#000',
     marginTop: 4,
   },
-  achievementDesc: {
-    fontSize: 10,
-    color: '#8E8E93',
+  achievementDesc: { fontSize: 12,
+    color: '#636366',
     marginTop: 2,
   },
   bottomPadding: {

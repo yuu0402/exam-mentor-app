@@ -13,6 +13,10 @@ async function setSecure(key, value) {
     await SecureStore.setItemAsync(key, value, { keychainAccessible: KEYCHAIN_ACCESS });
     return true;
   } catch (e) {
+    // 降级到 AsyncStorage 前，先清除旧 SecureStore 数据避免残留
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch (_) {}
     await AsyncStorage.setItem(key, value);
     return false;
   }
@@ -20,7 +24,12 @@ async function setSecure(key, value) {
 
 async function getSecure(key) {
   try {
-    return await SecureStore.getItemAsync(key);
+    const value = await SecureStore.getItemAsync(key);
+    if (value !== null) {
+      return value;
+    }
+    // SecureStore 没有值（从未写入或已清除），才读 AsyncStorage
+    return await AsyncStorage.getItem(key);
   } catch (e) {
     return await AsyncStorage.getItem(key);
   }

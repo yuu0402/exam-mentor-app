@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
   ActivityIndicator, RefreshControl,
@@ -28,9 +28,15 @@ export default function QuickPracticeScreen({ navigation, route }) {
   const [finished, setFinished] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+  const selectTimeoutRef = useRef(null);
 
   useEffect(() => {
     loadQuestions();
+    return () => {
+      if (selectTimeoutRef.current) {
+        clearTimeout(selectTimeoutRef.current);
+      }
+    };
   }, []);
 
   const loadQuestions = async () => {
@@ -114,7 +120,7 @@ export default function QuickPracticeScreen({ navigation, route }) {
         console.warn('复习结果上报失败:', e.message);
       }
     }
-    setTimeout(() => {
+    selectTimeoutRef.current = setTimeout(() => {
       if (currentIndex < questions.length - 1) {
         setCurrentIndex(prev => prev + 1);
         setSelectedAnswer(null);
@@ -155,7 +161,7 @@ export default function QuickPracticeScreen({ navigation, route }) {
   if (!currentQ && !finished) {
     return (
       <View style={[styles.container, styles.center]}>
-        <Icon name="quiz" size={50} color="#C7C7CC" />
+        <Icon name="quiz" size={50} color="#9E9E9E" />
         <Text style={styles.emptyText}>暂无对应练习题</Text>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Text style={styles.backBtnText}>返回</Text>
@@ -328,8 +334,8 @@ export default function QuickPracticeScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F2F2F7' },
   center: { justifyContent: 'center', alignItems: 'center', padding: 40 },
-  loadingText: { fontSize: 14, color: '#8E8E93', marginTop: 12 },
-  emptyText: { fontSize: 16, color: '#8E8E93', marginTop: 12, marginBottom: 20 },
+  loadingText: { fontSize: 14, color: '#636366', marginTop: 12 },
+  emptyText: { fontSize: 16, color: '#636366', marginTop: 12, marginBottom: 20 },
   backBtn: { backgroundColor: '#007AFF', borderRadius: 20, paddingHorizontal: 28, paddingVertical: 12 },
   backBtnText: { color: '#fff', fontSize: 15, fontWeight: '600' },
 
@@ -341,7 +347,7 @@ const styles = StyleSheet.create({
   quizBackBtn: { padding: 4 },
   quizProgressBar: { flex: 1, height: 4, backgroundColor: '#E5E5EA', borderRadius: 2, overflow: 'hidden' },
   quizProgressFill: { height: '100%', backgroundColor: '#007AFF', borderRadius: 2 },
-  quizCounter: { fontSize: 13, fontWeight: '600', color: '#8E8E93', minWidth: 36, textAlign: 'right' },
+  quizCounter: { fontSize: 13, fontWeight: '600', color: '#636366', minWidth: 36, textAlign: 'right' },
 
   // 网络错误提示
   errorBanner: { flexDirection:'row', alignItems:'center', backgroundColor:'#FF3B30', paddingVertical:10, paddingHorizontal:16, marginHorizontal:16, marginTop:8, borderRadius:10, gap:6 },
@@ -353,7 +359,7 @@ const styles = StyleSheet.create({
   quizBodyInner: { padding: 20, paddingTop: 16 },
   qMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
   qMetaText: { fontSize: 12, color: '#007AFF', backgroundColor: '#007AFF' + '10', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, overflow: 'hidden' },
-  qMetaKP: { fontSize: 12, color: '#8E8E93', backgroundColor: '#F0F0F5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, overflow: 'hidden' },
+  qMetaKP: { fontSize: 12, color: '#636366', backgroundColor: '#F0F0F5', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, overflow: 'hidden' },
   diffBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
   diffText: { fontSize: 11, fontWeight: '600' },
   qText: {
@@ -377,7 +383,7 @@ const styles = StyleSheet.create({
     width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 14,
   },
   resultTitle: { fontSize: 20, fontWeight: '700', color: '#000', marginBottom: 6 },
-  resultScore: { fontSize: 15, color: '#8E8E93', marginBottom: 12 },
+  resultScore: { fontSize: 15, color: '#636366', marginBottom: 12 },
   resultBarTrack: { width: '80%', height: 8, backgroundColor: '#E5E5EA', borderRadius: 4, overflow: 'hidden' },
   resultBarFill: { height: '100%', borderRadius: 4 },
   reviewCard: {
@@ -395,7 +401,7 @@ const styles = StyleSheet.create({
   },
   reviewOptLabel: { fontSize: 13, fontWeight: '700', minWidth: 20 },
   reviewOptText: { flex: 1, fontSize: 13, color: '#000' },
-  explanation: { fontSize: 12, color: '#8E8E93', lineHeight: 18, paddingTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E5EA', marginTop: 4 },
+  explanation: { fontSize: 12, color: '#636366', lineHeight: 18, paddingTop: 4, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E5EA', marginTop: 4 },
 
   resultActions: { flexDirection: 'row', gap: 12, marginTop: 8 },
   resultBtnPrimary: {
@@ -408,5 +414,5 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff', borderRadius: 14, paddingVertical: 14,
     borderWidth: 1, borderColor: '#E5E5EA',
   },
-  resultBtnSecondaryText: { color: '#8E8E93', fontSize: 15, fontWeight: '600' },
+  resultBtnSecondaryText: { color: '#636366', fontSize: 15, fontWeight: '600' },
 });

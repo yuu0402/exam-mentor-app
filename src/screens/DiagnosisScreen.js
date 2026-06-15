@@ -124,7 +124,7 @@ const RadarChart = React.memo(function RadarChart({ radarSubjects, report }) {
     gridLevels.forEach(lvl => {
       const verts = getPentagonVertices(cx, cy, r * lvl, count);
       const isPassLine = Math.abs(lvl - 0.6) < 0.01;
-      const lineColor = isPassLine ? '#FF9800' : '#E0E0E0';
+      const lineColor = isPassLine ? '#FF9800' : '#D1D1D6';
       const lineThickness = isPassLine ? 2 : 1;
       for (let i = 0; i < count; i++) {
         const p1 = verts[i];
@@ -137,7 +137,7 @@ const RadarChart = React.memo(function RadarChart({ radarSubjects, report }) {
     // Axes from center to each 100% vertex
     const verts100 = getPentagonVertices(cx, cy, r, count);
     verts100.forEach((v, i) => {
-      const style = getLineStyle(cx, cy, v.x, v.y, '#E0E0E0', 1);
+      const style = getLineStyle(cx, cy, v.x, v.y, '#D1D1D6', 1);
       if (style) els.push(<View key={`axis-${i}`} style={style} />);
     });
 
@@ -274,6 +274,38 @@ export default function DiagnosisScreen({ navigation }) {
   // P1-4 修复：debounce saveData，避免每次答题都触发一次完整的 AsyncStorage IO。
   // 使用 ref 保存 debounce timer，避免每次渲染重建。
   const saveDraftTimerRef = useRef(null);
+
+  // P1-6 修复：将 useMemo 从条件渲染后移到组件顶部，符合 Hooks 规则
+  const navigationItems = useMemo(() => (
+    test.questions.map((q, idx) => {
+      if (subjectFilter && q.subject !== subjectFilter) return null;
+      const isAnswered = answers[q.id] !== undefined;
+      const isUncertain = uncertainAnswers[q.id];
+      const isCurrent = idx === currentQuestionIndex;
+      return (
+        <TouchableOpacity
+          key={q.id}
+          style={[
+            styles.questionNavDot,
+            isAnswered && styles.questionNavDotAnswered,
+            isUncertain && styles.questionNavDotUncertain,
+            isCurrent && styles.questionNavDotCurrent,
+          ]}
+          onPress={() => jumpToQuestion(idx)}
+          activeOpacity={0.6}
+        >
+          <Text style={[
+            styles.questionNavDotText,
+            isAnswered && styles.questionNavDotTextAnswered,
+            isUncertain && styles.questionNavDotTextUncertain,
+            isCurrent && styles.questionNavDotTextCurrent,
+          ]}>
+            {idx + 1}
+          </Text>
+        </TouchableOpacity>
+      );
+    })
+  ), [test.questions, subjectFilter, answers, uncertainAnswers, currentQuestionIndex]);
 
   // AI review states
   const [aiReviewLoading, setAiReviewLoading] = useState(false);
@@ -988,37 +1020,8 @@ ${weakLines}
         <View style={styles.questionNavContainer}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.questionNavRow}>
-              {/* P1-6 修复：用 useMemo 缓存导航点计算结果，避免每次渲染都重新过滤和生成 */}
-              {useMemo(() => (
-                test.questions.map((q, idx) => {
-                  if (subjectFilter && q.subject !== subjectFilter) return null;
-                  const isAnswered = answers[q.id] !== undefined;
-                  const isUncertain = uncertainAnswers[q.id];
-                  const isCurrent = idx === currentQuestionIndex;
-                  return (
-                    <TouchableOpacity
-                      key={q.id}
-                      style={[
-                        styles.questionNavDot,
-                        isAnswered && styles.questionNavDotAnswered,
-                        isUncertain && styles.questionNavDotUncertain,
-                        isCurrent && styles.questionNavDotCurrent,
-                      ]}
-                      onPress={() => jumpToQuestion(idx)}
-                      activeOpacity={0.6}
-                    >
-                      <Text style={[
-                        styles.questionNavDotText,
-                        isAnswered && styles.questionNavDotTextAnswered,
-                        isUncertain && styles.questionNavDotTextUncertain,
-                        isCurrent && styles.questionNavDotTextCurrent,
-                      ]}>
-                        {idx + 1}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })
-              ), [test.questions, subjectFilter, answers, uncertainAnswers, currentQuestionIndex])}
+              {/* P1-6 修复：导航点已通过 useMemo 缓存（见组件顶部 navigationItems） */}
+              {navigationItems}
             </View>
           </ScrollView>
         </View>
@@ -1657,7 +1660,7 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: 3,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#D1D1D6',
   },
   progressFill: {
     height: '100%',
@@ -1706,7 +1709,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 15,
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#D1D1D6',
     marginBottom: 10,
   },
   optionSelected: {
@@ -1750,7 +1753,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 10,
     borderWidth: 1.5,
-    borderColor: '#E0E0E0',
+    borderColor: '#D1D1D6',
     borderStyle: 'dashed',
     backgroundColor: '#FAFAFA',
   },
@@ -1774,7 +1777,7 @@ const styles = StyleSheet.create({
     padding: 15,
     backgroundColor: '#fff',
     borderTopWidth: 1,
-    borderTopColor: '#E0E0E0',
+    borderTopColor: '#D1D1D6',
   },
   navButton: {
     flexDirection: 'row',
@@ -1867,8 +1870,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
   },
-  radarLabelScore: {
-    fontSize: 10,
+  radarLabelScore: { fontSize: 11,
     color: '#666',
     textAlign: 'center',
   },
@@ -1936,7 +1938,7 @@ const styles = StyleSheet.create({
   subjectScoreBar: {
     flex: 1,
     height: 8,
-    backgroundColor: '#E0E0E0',
+    backgroundColor: '#D1D1D6',
     borderRadius: 4,
     marginHorizontal: 10,
   },
@@ -1989,18 +1991,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginRight: 8,
   },
-  priorityBadge: {
-    fontSize: 10,
-    fontWeight: '600',
+  priorityBadge: { fontSize: 12, fontWeight: '600',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
     marginRight: 6,
     overflow: 'hidden',
   },
-  impactScore: {
-    fontSize: 10,
-    color: '#999',
+  impactScore: { fontSize: 12, color: '#999',
   },
   weakPointHint: {
     fontSize: 12,
@@ -2008,15 +2006,11 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     lineHeight: 18,
   },
-  studyButton: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  studyButton: { paddingHorizontal: 8, paddingVertical: 12,
     borderRadius: 10,
     marginRight: 6,
   },
-  studyButtonText: {
-    fontSize: 10,
-    fontWeight: '600',
+  studyButtonText: { fontSize: 12, fontWeight: '600',
     color: '#fff',
   },
   weakPointDetail: {
@@ -2191,7 +2185,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: '#F5F5F5',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#D1D1D6',
     marginRight: 8,
   },
   subjectFilterChipActive: {
@@ -2474,9 +2468,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
-  aiDisclaimerText: {
-    fontSize: 11,
-    color: '#999',
+  aiDisclaimerText: { fontSize: 12, color: '#999',
     marginLeft: 4,
   },
 

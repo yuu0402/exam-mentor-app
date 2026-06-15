@@ -74,7 +74,10 @@ export default function LearningSessionScreen({ navigation }) {
 
   // 计时器
   useEffect(() => {
-    if (!timer?.active) { navigation.goBack(); return; }
+    if (!timer?.active) {
+    if (navigation.canGoBack()) { navigation.goBack(); } else { navigation.navigate('Today'); }
+    return;
+  }
     const start = new Date(timer.startTime).getTime();
     setElapsed(Math.floor((Date.now() - start) / 60000));
     const iv = setInterval(() => setElapsed(Math.floor((Date.now() - start) / 60000)), 15000);
@@ -167,7 +170,7 @@ export default function LearningSessionScreen({ navigation }) {
       }
     }
     stopTimer(elapsed);
-    navigation.goBack();
+    if (navigation.canGoBack()) { navigation.goBack(); } else { navigation.navigate('Today'); }
   };
 
   if (loading) {
@@ -224,7 +227,7 @@ export default function LearningSessionScreen({ navigation }) {
                 <Text style={styles.videoTitle} numberOfLines={2}>{currentVideo.file_name?.replace(/\.[^.]+$/, '')}</Text>
                 <Text style={styles.videoHint}>先看视频理解概念</Text>
               </View>
-              <Icon name="chevron-right" size={20} color="#C7C7CC" />
+              <Icon name="chevron-right" size={20} color="#C8C8CD" />
             </TouchableOpacity>
           ) : (
             <View style={styles.card}>
@@ -345,10 +348,10 @@ export default function LearningSessionScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#F2F2F7' },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F2F2F7', padding: 30 },
-  loadingText: { fontSize: 15, color: '#8E8E93', marginTop: 12 },
+  loadingText: { fontSize: 15, color: '#636366', marginTop: 12 },
 
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 50, paddingBottom: 16, backgroundColor: '#fff' },
-  stageLabel: { fontSize: 13, color: '#8E8E93', marginBottom: 2 },
+  stageLabel: { fontSize: 13, color: '#636366', marginBottom: 2 },
   subjectName: { fontSize: 22, fontWeight: '800', color: '#000' },
   timerBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E8F2FF', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, gap: 4 },
   timerText: { fontSize: 15, fontWeight: '700', color: '#007AFF' },
@@ -365,7 +368,7 @@ const styles = StyleSheet.create({
   videoInfo: { flex: 1 },
   videoLabel: { fontSize: 11, color: '#007AFF', fontWeight: '600', marginBottom: 2 },
   videoTitle: { fontSize: 14, fontWeight: '600', color: '#000', lineHeight: 20 },
-  videoHint: { fontSize: 12, color: '#8E8E93', marginTop: 4 },
+  videoHint: { fontSize: 12, color: '#636366', marginTop: 4 },
 
   browseBtn: { flexDirection: 'row', alignItems: 'center', marginTop: 12, gap: 6 },
   browseText: { fontSize: 14, color: '#007AFF', fontWeight: '500' },
@@ -380,14 +383,14 @@ const styles = StyleSheet.create({
   qMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
   qBadge: { backgroundColor: '#E8F2FF', paddingHorizontal: 10, paddingVertical: 3, borderRadius: 8 },
   qBadgeText: { fontSize: 12, color: '#007AFF', fontWeight: '600' },
-  qDiff: { fontSize: 12, color: '#8E8E93' },
+  qDiff: { fontSize: 12, color: '#636366' },
   qText: { fontSize: 16, fontWeight: '600', color: '#000', lineHeight: 26, marginBottom: 20 },
   optionsWrap: { gap: 10 },
   optBtn: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 12, borderWidth: 1.5, borderColor: '#E5E5EA', gap: 10 },
   optSelected: { borderColor: '#007AFF', backgroundColor: '#E8F2FF' },
   optCorrect: { borderColor: '#34C759', backgroundColor: '#E8F8ED' },
   optWrong: { borderColor: '#FF3B30', backgroundColor: '#FFF0F0' },
-  optLetter: { fontSize: 15, fontWeight: '700', color: '#8E8E93', width: 24, textAlign: 'center' },
+  optLetter: { fontSize: 15, fontWeight: '700', color: '#636366', width: 24, textAlign: 'center' },
   optText: { fontSize: 14, color: '#000', flex: 1 },
   explanation: { marginTop: 16, backgroundColor: '#F2F2F7', borderRadius: 12, padding: 16 },
   explanationTitle: { fontSize: 15, fontWeight: '700', color: '#000', marginBottom: 8 },
