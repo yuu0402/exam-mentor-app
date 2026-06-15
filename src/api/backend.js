@@ -6,12 +6,41 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 // ======================== 配置 ========================
 // API 基地址：从环境变量读取，支持本地开发/生产环境切换
 const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'http://172.29.58.198:8000';
 const TOKEN_KEY = '@auth_token';
 const USER_KEY = '@auth_user';
+
+// ======================== 安全存储层 ========================
+// auth token 使用 iOS Keychain / Android Keystore 替代 AsyncStorage 明文存储
+// 降级策略：SecureStore 失败时回退到 AsyncStorage（不影响功能，仅降低安全性）
+async function setSecureToken(token) {
+  try {
+    await SecureStore.setItemAsync(TOKEN_KEY, token, { keychainAccessible: SecureStore.KEYCHAIN_ACCESSIBLE.WHEN_UNLOCKED });
+    return true;
+  } catch (e) {
+    // Keychain 不可用时降级到 AsyncStorage
+    await AsyncStorage.setItem(TOKEN_KEY, token);
+    return false;
+  }
+}
+async function getSecureToken() {
+  try {
+    return await SecureStore.getItemAsync(TOKEN_KEY);
+  } catch (e) {
+    return await AsyncStorage.getItem(TOKEN_KEY);
+  }
+}
+async function removeSecureToken() {
+  try {
+    await SecureStore.deleteItemAsync(TOKEN_KEY);
+  } catch (e) {
+    await AsyncStorage.removeItem(TOKEN_KEY);
+  }
+}
 
 // ======================== 401 事件发射器 ========================
 // 后端返回 401 时通知 AppContext 清除登录状态
@@ -44,7 +73,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 15000) {
 
 // ======================== 工具函数 ========================
 async function request(method, path, body = null, headers = {}) {
-  const token = await AsyncStorage.getItem(TOKEN_KEY);
+  const token = await getSecureToken(); // [安全升级] 使用 Keychain 而非 AsyncStorage 明文存储
   const defaultHeaders = {
     'Content-Type': 'application/json',
     ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
@@ -75,7 +104,7 @@ async function request(method, path, body = null, headers = {}) {
   if (!res.ok) {
     // 401：清除本地认证信息，触发全局登出
     if (res.status === 401) {
-      await AsyncStorage.removeItem(TOKEN_KEY);
+      await removeSecureToken(); // [安全升级] 使用 Keychain 清除
       await AsyncStorage.removeItem(USER_KEY);
       // 通知 AppContext 登出（通过自定义事件）
       dispatchAuthEvent('backend:unauthorized');
@@ -112,7 +141,7 @@ export async function register(userData) {
     code: userData.code,
     nickname: userData.nickname || null,
   });
-  await AsyncStorage.setItem(TOKEN_KEY, result.access_token);
+  await setSecureToken(result.access_token); // [安全升级] auth token 存 Keychain
   await AsyncStorage.setItem(USER_KEY, JSON.stringify(result.user));
   return result;
 }
@@ -127,7 +156,7 @@ export async function login(credentials) {
     phone: credentials.phone,
     code: credentials.code,
   });
-  await AsyncStorage.setItem(TOKEN_KEY, result.access_token);
+  await setSecureToken(result.access_token); // [安全升级] auth token 存 Keychain
   await AsyncStorage.setItem(USER_KEY, JSON.stringify(result.user));
   return result;
 }
@@ -157,7 +186,7 @@ export async function updateProfile(profileData) {
  */
 export async function logout() {
   await request('POST', '/api/auth/logout').catch(() => {});
-  await AsyncStorage.removeItem(TOKEN_KEY);
+  await removeSecureToken(); // [安全升级] 使用 Keychain 清除
   await AsyncStorage.removeItem(USER_KEY);
 }
 
@@ -166,7 +195,7 @@ export async function logout() {
  * @returns {boolean}
  */
 export async function isLoggedIn() {
-  const token = await AsyncStorage.getItem(TOKEN_KEY);
+  const token = await getSecureToken(); // [安全升级] 使用 Keychain 查询
   return !!token;
 }
 
